@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="/static/assets/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="admin-dashboard.html" class="sidebar-brand">
+                <img src="/static/assets/img/logo.png" alt="Renvora Tech Logo" style="height: 48px; width: auto; object-fit: contain;"> <span style="margin-left: 8px; font-weight: 700;">Renvora Tech</span>
+            </a>
+        </div>
+        <div class="sidebar-menu py-3">
+            <a href="admin-dashboard.html" class="nav-link active"><i class="fas fa-home"></i> Dashboard</a>
+            <a href="employees.html" class="nav-link"><i class="fas fa-users"></i> Employees</a>
+            <a href="projects.html" class="nav-link"><i class="fas fa-project-diagram"></i> Projects</a>
+            <a href="clients.html" class="nav-link"><i class="fas fa-briefcase"></i> Clients</a>
+            <a href="daily-work.html" class="nav-link"><i class="fas fa-clipboard-list"></i> Daily Work Report</a>
+            <a href="policy.html" class="nav-link"><i class="fas fa-book"></i> Company Policy</a>
+            <a href="#financeSubmenu" data-bs-toggle="collapse" class="nav-link d-flex align-items-center"><i class="fas fa-wallet"></i> Finance <i class="fas fa-chevron-down ms-auto" style="font-size:0.8em"></i></a>
+            <div class="collapse " id="financeSubmenu">
+                <a href="salary.html" class="nav-link " style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-money-bill-wave"></i> Salary</a>
+                <a href="expenses.html" class="nav-link " style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-file-invoice-dollar"></i> Expenses</a>
+            </div>
+            <a href="login.html" class="nav-link text-danger mt-4"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Top Header -->
+        <header class="top-header">
+            <button class="btn btn-light rounded-circle shadow-sm" id="sidebarToggle">
+                <i class="fas fa-bars text-primary"></i>
+            </button>
+            
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-light rounded-circle shadow-sm" id="themeToggle" style="width: 40px; height: 40px;">
+                    <i class="fas fa-moon text-primary"></i>
+                </button>
+                <div class="dropdown">
+                    <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <img src="https://ui-avatars.com/api/?name={{ name }}&background=2563EB&color=fff" alt="Profile" class="profile-img-sm me-2">
+                        <span class="d-none d-md-inline fw-semibold" style="color: var(--text-color);">{{ name }}</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="profileDropdown">
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profile</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="login.html"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <div class="container-fluid p-4">
+            <h4 class="mb-4 fw-bold">Admin Dashboard</h4>
+            
+            <!-- Cards -->
+            <div class="row g-4 mb-4">
+                <div class="col-12 col-sm-6 col-xl-4">
+                    <div class="glass-card p-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1 fw-semibold">Total Employees</p>
+                                <h3 class="fw-bold mb-0" id="statTotalEmployees">0</h3>
+                            </div>
+                            <div class="bg-gradient-primary rounded-circle p-3 shadow text-white">
+                                <i class="fas fa-users fa-lg"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-6 col-xl-4">
+                    <div class="glass-card p-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1 fw-semibold">Present Today</p>
+                                <h3 class="fw-bold mb-0" id="statPresentToday">0</h3>
+                            </div>
+                            <div class="bg-gradient-success rounded-circle p-3 shadow text-white">
+                                <i class="fas fa-user-check fa-lg"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-6 col-xl-4">
+                    <div class="glass-card p-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1 fw-semibold">Running Projects</p>
+                                <h3 class="fw-bold mb-0" id="statRunningProjects">0</h3>
+                            </div>
+                            <div class="bg-gradient-warning rounded-circle p-3 shadow text-white">
+                                <i class="fas fa-spinner fa-lg"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Cards Row -->
+            <div class="row g-4 mb-4">
+                <div class="col-12 col-sm-6 col-xl-4">
+                    <div class="glass-card p-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1 fw-semibold">Total Clients</p>
+                                <h3 class="fw-bold mb-0" id="statTotalClients">0</h3>
+                            </div>
+                            <div class="bg-gradient-primary rounded-circle p-3 shadow text-white">
+                                <i class="fas fa-handshake fa-lg"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-6 col-xl-4">
+                    <div class="glass-card p-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1 fw-semibold">Leads</p>
+                                <h3 class="fw-bold mb-0" id="statTotalLeads">0</h3>
+                            </div>
+                            <div class="bg-gradient-warning rounded-circle p-3 shadow text-white">
+                                <i class="fas fa-filter fa-lg"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-6 col-xl-4">
+                    <div class="glass-card p-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1 fw-semibold">Closed Deals</p>
+                                <h3 class="fw-bold mb-0" id="statTotalClosed">0</h3>
+                            </div>
+                            <div class="bg-gradient-success rounded-circle p-3 shadow text-white">
+                                <i class="fas fa-check-circle fa-lg"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Project Chart -->
+            <div class="row mb-4">
+                <div class="col-12 col-lg-8 mx-auto">
+                    <div class="glass-card p-4">
+                        <h5 class="fw-bold mb-4 text-center">Projects Overview</h5>
+                        <div style="height: 350px; display: flex; justify-content: center;">
+                            <canvas id="projectChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/assets/js/charts.js"></script>
+    <script src="/static/assets/js/script.js"></script>
+</body>
+</html>

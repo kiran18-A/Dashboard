@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance - Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="/static/assets/css/style.css">
+</head>
+<body>
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="admin-dashboard.html" class="sidebar-brand">
+                <img src="/static/assets/img/logo.png" alt="Renvora Tech Logo" style="height: 48px; width: auto; object-fit: contain;"> <span style="margin-left: 8px; font-weight: 700;">Renvora Tech</span>
+            </a>
+        </div>
+        <div class="sidebar-menu py-3">
+            <a href="admin-dashboard.html" class="nav-link"><i class="fas fa-home"></i> Dashboard</a>
+            <a href="employees.html" class="nav-link"><i class="fas fa-users"></i> Employees</a>
+            <a href="projects.html" class="nav-link"><i class="fas fa-project-diagram"></i> Projects</a>
+            <a href="clients.html" class="nav-link"><i class="fas fa-briefcase"></i> Clients</a>
+            <a href="daily-work.html" class="nav-link"><i class="fas fa-clipboard-list"></i> Daily Work Report</a>
+            <a href="policy.html" class="nav-link"><i class="fas fa-book"></i> Company Policy</a>
+            <a href="#financeSubmenu" data-bs-toggle="collapse" class="nav-link d-flex align-items-center"><i class="fas fa-wallet"></i> Finance <i class="fas fa-chevron-down ms-auto" style="font-size:0.8em"></i></a>
+            <div class="collapse " id="financeSubmenu">
+                <a href="salary.html" class="nav-link " style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-money-bill-wave"></i> Salary</a>
+                <a href="expenses.html" class="nav-link " style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-file-invoice-dollar"></i> Expenses</a>
+            </div>
+            <a href="login.html" class="nav-link text-danger mt-4"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <header class="top-header">
+            <button class="btn btn-light rounded-circle shadow-sm" id="sidebarToggle">
+                <i class="fas fa-bars text-primary"></i>
+            </button>
+            
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-light rounded-circle shadow-sm" id="themeToggle" style="width: 40px; height: 40px;">
+                    <i class="fas fa-moon text-primary"></i>
+                </button>
+                <div class="dropdown">
+                    <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <img src="https://ui-avatars.com/api/?name=Admin+User&background=2563EB&color=fff" alt="Profile" class="profile-img-sm me-2">
+                        <span class="d-none d-md-inline fw-semibold" style="color: var(--text-color);">Admin User</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="profileDropdown">
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profile</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="login.html"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </header>
+
+        <div class="container-fluid p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="mb-0 fw-bold">Attendance Overview</h4>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addLeaveModal"><i class="fas fa-plus me-2"></i>Add Leave Request</button>
+            </div>
+            
+            <div class="row g-4 mb-4">
+                <div class="col-12 col-sm-6 col-md-3">
+                    <div class="glass-card p-3 text-center border-bottom border-4 border-success" style="border-radius: 1rem 1rem 0 0;">
+                        <h3 class="fw-bold text-success mb-1" id="statPresent">0</h3>
+                        <p class="text-muted mb-0 fw-semibold">Present</p>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-6 col-md-3">
+                    <div class="glass-card p-3 text-center border-bottom border-4 border-danger" style="border-radius: 1rem 1rem 0 0;">
+                        <h3 class="fw-bold text-danger mb-1" id="statAbsent">0</h3>
+                        <p class="text-muted mb-0 fw-semibold">Absent</p>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-6 col-md-3">
+                    <div class="glass-card p-3 text-center border-bottom border-4 border-warning" style="border-radius: 1rem 1rem 0 0;">
+                        <h3 class="fw-bold text-warning mb-1" id="statLate">0</h3>
+                        <p class="text-muted mb-0 fw-semibold">Late</p>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-6 col-md-3">
+                    <div class="glass-card p-3 text-center border-bottom border-4 border-info" style="border-radius: 1rem 1rem 0 0;">
+                        <h3 class="fw-bold text-info mb-1" id="statLeave">0</h3>
+                        <p class="text-muted mb-0 fw-semibold">On Leave</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card p-4">
+                <h5 class="fw-bold mb-4">Today's Attendance</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Employee</th>
+                                <th>Date</th>
+                                <th>Login Time</th>
+                                <th>Logout Time</th>
+                                <th>Working Hours</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendanceTableBody">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="glass-card p-4 mt-4">
+                <h5 class="fw-bold mb-4">Leave Requests</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Employee</th>
+                                <th>Start Date</th>
+                                <th>End Date</th>
+                                <th>Reason</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaveTableBody">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Add Leave Modal -->
+    <div class="modal fade" id="addLeaveModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content glass-card">
+                <div class="modal-header border-bottom border-secondary">
+                    <h5 class="modal-title fw-bold">Add Leave Request</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addLeaveForm" class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label text-muted small fw-semibold">Employee</label>
+                            <select class="form-select glass-input py-2" id="leaveEmployee" required>
+                                <option value="">Select Employee</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small fw-semibold">Start Date</label>
+                            <input type="date" class="form-control glass-input py-2" id="leaveStartDate" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small fw-semibold">End Date</label>
+                            <input type="date" class="form-control glass-input py-2" id="leaveEndDate" required>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label text-muted small fw-semibold">Reason</label>
+                            <textarea class="form-control glass-input py-2" id="leaveReason" rows="3" required></textarea>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label text-muted small fw-semibold">Status</label>
+                            <select class="form-select glass-input py-2" id="leaveStatus">
+                                <option value="Pending">Pending</option>
+                                <option value="Approved">Approved</option>
+                                <option value="Rejected">Rejected</option>
+                            </select>
+                        </div>
+                        <div class="col-12 mt-4 text-end">
+                            <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save Leave Request</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/assets/js/script.js"></script>
+</body>
+</html>

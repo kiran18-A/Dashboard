@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employees - Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="/static/assets/css/style.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="admin-dashboard.html" class="sidebar-brand">
+                <img src="/static/assets/img/logo.png" alt="Renvora Tech Logo" style="height: 48px; width: auto; object-fit: contain;"> <span style="margin-left: 8px; font-weight: 700;">Renvora Tech</span>
+            </a>
+        </div>
+        <div class="sidebar-menu py-3">
+            <a href="admin-dashboard.html" class="nav-link"><i class="fas fa-home"></i> Dashboard</a>
+            <a href="employees.html" class="nav-link active"><i class="fas fa-users"></i> Employees</a>
+            <a href="projects.html" class="nav-link"><i class="fas fa-project-diagram"></i> Projects</a>
+            <a href="clients.html" class="nav-link"><i class="fas fa-briefcase"></i> Clients</a>
+            <a href="daily-work.html" class="nav-link"><i class="fas fa-clipboard-list"></i> Daily Work Report</a>
+            <a href="policy.html" class="nav-link"><i class="fas fa-book"></i> Company Policy</a>
+            <a href="#financeSubmenu" data-bs-toggle="collapse" class="nav-link d-flex align-items-center"><i class="fas fa-wallet"></i> Finance <i class="fas fa-chevron-down ms-auto" style="font-size:0.8em"></i></a>
+            <div class="collapse " id="financeSubmenu">
+                <a href="salary.html" class="nav-link " style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-money-bill-wave"></i> Salary</a>
+                <a href="expenses.html" class="nav-link " style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-file-invoice-dollar"></i> Expenses</a>
+            </div>
+            <a href="login.html" class="nav-link text-danger mt-4"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Top Header -->
+        <header class="top-header">
+            <button class="btn btn-light rounded-circle shadow-sm" id="sidebarToggle">
+                <i class="fas fa-bars text-primary"></i>
+            </button>
+            
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-light rounded-circle shadow-sm" id="themeToggle" style="width: 40px; height: 40px;">
+                    <i class="fas fa-moon text-primary"></i>
+                </button>
+                <div class="dropdown">
+                    <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <img src="https://ui-avatars.com/api/?name=Admin+User&background=2563EB&color=fff" alt="Profile" class="profile-img-sm me-2">
+                        <span class="d-none d-md-inline fw-semibold" style="color: var(--text-color);">Admin User</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="profileDropdown">
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profile</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="login.html"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <div class="container-fluid p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold mb-0">Employee Management</h4>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addEmployeeModal">
+                    <i class="fas fa-plus me-2"></i>Add Employee
+                </button>
+            </div>
+
+            <div class="glass-card p-4 mb-4">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text bg-transparent"><i class="fas fa-search text-muted"></i></span>
+                            <input type="text" class="form-control border-start-0" id="empSearchInput" placeholder="Search employees...">
+                        </div>
+                    </div>
+                    <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                        <select class="form-select d-inline-block w-auto" id="deptFilterSelect">
+                            <option value="">All Departments</option>
+                            <option>Development</option>
+                            <option>Design</option>
+                            <option>HR</option>
+                            <option>Marketing</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Employee Name</th>
+                                <th>Department</th>
+                                <th>Username</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="employeeTableBody">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <nav aria-label="Page navigation" class="mt-4">
+                  <ul class="pagination justify-content-end mb-0">
+                    <li class="page-item disabled"><a class="page-link" href="#">Previous</a></li>
+                    <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">Next</a></li>
+                  </ul>
+                </nav>
+            </div>
+        </div>
+    </main>
+
+    <!-- Add Employee Modal -->
+    <div class="modal fade" id="addEmployeeModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content glass-card border-0">
+          <div class="modal-header border-bottom border-secondary">
+            <h5 class="modal-title fw-bold">Add New Employee</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+        <form id="addEmployeeForm">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Employee Name</label>
+                    <input type="text" class="form-control" id="empName" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Employee ID</label>
+                    <input type="text" class="form-control" id="empId" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Department</label>
+                    <select class="form-select" id="empDepartment">
+                        <option>Development</option>
+                        <option>Design</option>
+                        <option>HR</option>
+                        <option>Marketing</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Designation</label>
+                    <input type="text" class="form-control" id="empDesignation" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Email</label>
+                    <input type="email" class="form-control" id="empEmail" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Phone</label>
+                    <input type="tel" class="form-control" id="empPhone" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Joining Date</label>
+                    <input type="date" class="form-control" id="empJoinDate" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Status</label>
+                    <select class="form-select" id="empStatus">
+                        <option>Active</option>
+                        <option>Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Base Salary (₹)</label>
+                    <input type="number" class="form-control" id="empSalary" min="0" step="0.01" required>
+                </div>
+            </div>
+            
+            <div class="row g-3 mt-2">
+                <div class="col-12"><h6 class="fw-bold text-primary border-bottom pb-2">Login Details (Optional)</h6></div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Username</label>
+                    <input type="text" class="form-control" id="empUsername">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Password</label>
+                    <input type="password" class="form-control" id="empPassword">
+                </div>
+            </div>
+            <div class="mt-4 text-end">
+                <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Employee</button>
+            </div>
+        </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Employee Details Modal -->
+    <div class="modal fade" id="employeeDetailsModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content glass-card border-0">
+          <div class="modal-header border-bottom border-secondary">
+            <h5 class="modal-title fw-bold" id="detailEmpTitle">Employee Details</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <!-- Nav tabs -->
+            <ul class="nav nav-tabs border-secondary mb-3" id="empDetailTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active bg-transparent text-primary fw-semibold" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile" type="button" role="tab" aria-selected="true">Profile</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link bg-transparent text-muted fw-semibold" id="attendance-tab" data-bs-toggle="tab" data-bs-target="#attendance" type="button" role="tab" aria-selected="false">Attendance</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link bg-transparent text-muted fw-semibold" id="work-tab" data-bs-toggle="tab" data-bs-target="#work" type="button" role="tab" aria-selected="false">Daily Work & Projects</button>
+              </li>
+            </ul>
+
+            <!-- Tab panes -->
+            <div class="tab-content" id="empDetailTabsContent">
+              <!-- Profile Tab -->
+              <div class="tab-pane fade show active" id="profile" role="tabpanel">
+                <div class="row g-4" id="detailProfileContent">
+                    <!-- Profile content will be populated here -->
+                </div>
+              </div>
+              
+              <!-- Attendance Tab -->
+              <div class="tab-pane fade" id="attendance" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Check In</th>
+                                <th>Check Out</th>
+                                <th>Working Hours</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailAttendanceBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+              </div>
+              
+              <!-- Work Tab -->
+              <div class="tab-pane fade" id="work" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Task/Description</th>
+                                <th>Time (Hr.min.sec)</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailWorkBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/assets/js/script.js"></script>
+</body>
+</html>

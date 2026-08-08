@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - Employee Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="/static/assets/css/style.css">
+</head>
+<body>
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="employee-dashboard.html" class="sidebar-brand">
+                <img src="/static/assets/img/logo.png" alt="Renvora Tech Logo" style="height: 48px; width: auto; object-fit: contain;"> <span style="margin-left: 8px; font-weight: 700;">Renvora Tech</span>
+            </a>
+        </div>
+        <div class="sidebar-menu py-3">
+            <a href="employee-dashboard.html" class="nav-link"><i class="fas fa-home"></i> Dashboard</a>
+            <a href="profile.html" class="nav-link active"><i class="fas fa-user"></i> My Profile</a>
+            <a href="login.html" class="nav-link text-danger mt-4"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <header class="top-header">
+            <button class="btn btn-light rounded-circle shadow-sm" id="sidebarToggle">
+                <i class="fas fa-bars text-primary"></i>
+            </button>
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-light rounded-circle shadow-sm" id="themeToggle" style="width: 40px; height: 40px;">
+                    <i class="fas fa-moon text-primary"></i>
+                </button>
+                <div class="dropdown">
+                    <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <img src="https://ui-avatars.com/api/?name={{ name }}&background=10B981&color=fff" class="profile-img-sm me-2">
+                        <span class="d-none d-md-inline fw-semibold" style="color: var(--text-color);">{{ name }}</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="profileDropdown">
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profile</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="login.html"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </header>
+
+        <div class="container-fluid p-4">
+            <h4 class="mb-4 fw-bold">My Profile</h4>
+            
+            <div class="glass-card p-4 text-center mb-4">
+                <img src="https://ui-avatars.com/api/?name={{ name }}&background=10B981&color=fff&size=120" class="profile-img-lg mb-3 shadow">
+                <h3 class="fw-bold">{{ name }}</h3>
+                <p class="text-primary fw-semibold mb-0">{{ designation }} ({{ employee_id }})</p>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="glass-card p-4 h-100">
+                        <h5 class="fw-bold border-bottom pb-2 mb-3 d-flex justify-content-between align-items-center" style="border-color: var(--border-color) !important;">
+                            <span>Personal Information</span>
+                            <div>
+                                <button class="btn btn-sm btn-outline-warning me-2" data-bs-toggle="modal" data-bs-target="#changePasswordModal"><i class="fas fa-key"></i> Change Password</button>
+                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editProfileModal"><i class="fas fa-edit"></i> Edit</button>
+                            </div>
+                        </h5>
+                        <div class="mb-3">
+                            <label class="text-muted small fw-semibold">Full Name</label>
+                            <p class="fw-semibold mb-0">{{ name }}</p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="text-muted small fw-semibold">Email Address</label>
+                            <p class="fw-semibold mb-0" id="display-email">{{ email }}</p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="text-muted small fw-semibold">Phone Number</label>
+                            <p class="fw-semibold mb-0" id="display-phone">{{ phone }}</p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="text-muted small fw-semibold">Emergency Number</label>
+                            <p class="fw-semibold mb-0" id="display-emergency">{{ emergency_number }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="glass-card p-4 h-100">
+                        <h5 class="fw-bold border-bottom pb-2 mb-3" style="border-color: var(--border-color) !important;">Company Information</h5>
+                        <div class="mb-3">
+                            <label class="text-muted small fw-semibold">Department</label>
+                            <p class="fw-semibold mb-0">{{ department }}</p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="text-muted small fw-semibold">Joining Date</label>
+                            <p class="fw-semibold mb-0">{{ joining_date }}</p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="text-muted small fw-semibold">Current Status</label>
+                            <p class="mb-0"><span class="badge {% if status == 'Active' %}bg-success{% else %}bg-danger{% endif %}">{{ status }}</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+    <!-- Change Password Modal -->
+    <div class="modal fade" id="changePasswordModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold text-dark">Change Password</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="changePasswordForm">
+                        <div class="mb-4">
+                            <label class="form-label text-muted small fw-semibold">New Password</label>
+                            <input type="password" class="form-control border-0 bg-light" id="newPasswordInput" required>
+                        </div>
+                        <button type="submit" class="btn btn-warning w-100 fw-semibold shadow-sm">Update Password</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Profile Modal -->
+    <div class="modal fade" id="editProfileModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold">Edit Profile</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editProfileForm">
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-semibold">Email Address</label>
+                            <input type="email" class="form-control border-0 bg-light" id="editEmail" value="{{ email }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-semibold">Phone Number</label>
+                            <input type="tel" class="form-control border-0 bg-light" id="editPhone" value="{{ phone }}" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label text-muted small fw-semibold">Emergency Number</label>
+                            <input type="tel" class="form-control border-0 bg-light" id="editEmergency" value="{{ emergency_number }}" placeholder="e.g. Spouse, Parent...">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 fw-semibold shadow-sm">Save Changes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const form = document.getElementById('editProfileForm');
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('editEmail').value;
+                const phone = document.getElementById('editPhone').value;
+                const emergency_number = document.getElementById('editEmergency').value;
+                
+                try {
+                    const res = await fetch('/api/update_profile', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ email, phone, emergency_number })
+                    });
+                    const data = await res.json();
+                    if(data.success) {
+                        document.getElementById('display-email').textContent = email;
+                        document.getElementById('display-phone').textContent = phone;
+                        document.getElementById('display-emergency').textContent = emergency_number;
+                        bootstrap.Modal.getInstance(document.getElementById('editProfileModal')).hide();
+                    } else {
+                        alert(data.error || 'Failed to update profile');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('An error occurred while saving.');
+                }
+            });
+        }
+    });
+            const pwForm = document.getElementById('changePasswordForm');
+        if (pwForm) {
+            pwForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const new_password = document.getElementById('newPasswordInput').value;
+                try {
+                    const res = await fetch('/api/change_password', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ new_password })
+                    });
+                    const data = await res.json();
+                    if(data.success) {
+                        alert('Password updated successfully!');
+                        bootstrap.Modal.getInstance(document.getElementById('changePasswordModal')).hide();
+                        pwForm.reset();
+                    } else {
+                        alert(data.error || 'Failed to update password');
+                    }
+                } catch(err) {
+                    console.error(err);
+                    alert('Error saving password');
+                }
+            });
+        }
+    </script>
+
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/assets/js/script.js"></script>
+</body>
+</html>
