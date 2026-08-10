@@ -120,16 +120,30 @@ def serve_page(page):
                     'days_worked_month': days_worked
                 })
             else:
+                u_email = 'admin@itcorp.com'
+                u_phone = 'N/A'
+                u_emer = 'N/A'
+                if 'users_df' in locals() and not users_df.empty:
+                    u_row_match = users_df[users_df['id'] == session.get('user_id')]
+                    if not u_row_match.empty:
+                        u_email = u_row_match.iloc[0].get('email', 'admin@itcorp.com')
+                        u_phone = u_row_match.iloc[0].get('phone', 'N/A')
+                        u_emer = u_row_match.iloc[0].get('emergency_number', 'N/A')
+                        
+                        if pd.isna(u_email) or str(u_email).strip() == '': u_email = 'admin@itcorp.com'
+                        if pd.isna(u_phone) or str(u_phone).strip() == '': u_phone = 'N/A'
+                        if pd.isna(u_emer) or str(u_emer).strip() == '': u_emer = 'N/A'
+
                 context.update({
                     'designation': session.get('role', 'N/A').title(),
                     'employee_id': 'ADMIN-01' if session.get('role') == 'admin' else 'N/A',
                     'department': 'Administration' if session.get('role') == 'admin' else 'N/A',
-                    'email': 'admin@itcorp.com' if session.get('role') == 'admin' else 'N/A',
-                    'phone': 'N/A',
+                    'email': u_email,
+                    'phone': u_phone,
                     'joining_date': 'N/A',
                     'status': 'Active',
                     'current_project': 'N/A',
-                    'emergency_number': 'N/A'
+                    'emergency_number': u_emer
                 })
         return render_template(f'{page}.html', **context)
     except Exception as e:
@@ -712,7 +726,35 @@ def update_profile():
         return jsonify({'error': 'Unauthorized'}), 401
         
     data = request.json
+    success = False
     
+    # Update in users.xlsx
+    users_path = get_db_path('users')
+    if os.path.exists(users_path):
+        udf = read_excel_cached(users_path)
+        if not udf.empty:
+            uidx = udf.index[udf['id'] == session.get('user_id')].tolist()
+            if uidx:
+                row_idx = uidx[0]
+                for col in ['email', 'phone', 'emergency_number']:
+                    if col not in udf.columns:
+                        udf[col] = ''
+                
+                # Convert to object to avoid dtype warning
+                for col in ['email', 'phone', 'emergency_number']:
+                    udf[col] = udf[col].astype(object)
+                
+                if 'email' in data:
+                    udf.at[row_idx, 'email'] = str(data['email'])
+                if 'phone' in data:
+                    udf.at[row_idx, 'phone'] = str(data['phone'])
+                if 'emergency_number' in data:
+                    udf.at[row_idx, 'emergency_number'] = str(data['emergency_number'])
+                    
+                udf.to_excel(users_path, index=False, engine='openpyxl')
+                success = True
+
+    # Update in employees.xlsx if applicable
     path = get_db_path('employees')
     if os.path.exists(path):
         df = read_excel_cached(path)
@@ -720,21 +762,25 @@ def update_profile():
             idx = df.index[(df['name'] == session.get('name')) | (df['employee_id'] == session.get('user_id'))].tolist()
             if idx:
                 row_idx = idx[0]
-                
-                # Check for new columns
                 for col in ['email', 'phone', 'emergency_number']:
                     if col not in df.columns:
                         df[col] = ''
                 
+                for col in ['email', 'phone', 'emergency_number']:
+                    df[col] = df[col].astype(object)
+                
                 if 'email' in data:
-                    df.at[row_idx, 'email'] = data['email']
+                    df.at[row_idx, 'email'] = str(data['email'])
                 if 'phone' in data:
-                    df.at[row_idx, 'phone'] = data['phone']
+                    df.at[row_idx, 'phone'] = str(data['phone'])
                 if 'emergency_number' in data:
-                    df.at[row_idx, 'emergency_number'] = data['emergency_number']
+                    df.at[row_idx, 'emergency_number'] = str(data['emergency_number'])
                 
                 df.to_excel(path, index=False, engine='openpyxl')
-                return jsonify({'success': True})
+                success = True
+
+    if success:
+        return jsonify({'success': True})
     return jsonify({'error': 'Failed to update profile'}), 500
 
 
