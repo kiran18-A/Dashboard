@@ -58,6 +58,11 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value; // Using correct ID
+            const submitBtn = loginForm.querySelector('button[type="submit"]');
+            const originalContent = submitBtn.innerHTML;
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Loading...';
             
             try {
                 const response = await fetch('/api/login', {
@@ -75,9 +80,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 } else {
                     alert(data.message || 'Login failed');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalContent;
                 }
             } catch (err) {
                 alert('Error connecting to server');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalContent;
             }
         });
     }
@@ -1429,10 +1438,34 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
-async function editStatus() {
-    const newStatus = prompt("Enter your new status (e.g. Active, On Break, In Meeting):");
+function editStatus() {
+    const modalEl = document.getElementById('editStatusModal');
+    if (modalEl) {
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    } else {
+        // Fallback if modal doesn't exist for some reason
+        const newStatus = prompt("Enter your new status (Active or Inactive):");
+        if (newStatus === "Active" || newStatus === "Inactive") {
+            saveStatusDirect(newStatus);
+        } else if (newStatus) {
+            alert("Only 'Active' or 'Inactive' are allowed.");
+        }
+    }
+}
+
+async function saveStatus() {
+    const newStatus = document.getElementById('editStatusSelect').value;
     if (!newStatus) return;
     
+    await saveStatusDirect(newStatus);
+    const modalEl = document.getElementById('editStatusModal');
+    if (modalEl) {
+        bootstrap.Modal.getInstance(modalEl).hide();
+    }
+}
+
+async function saveStatusDirect(newStatus) {
     try {
         const res = await fetch('/api/update_employee_status', {
             method: 'POST',
