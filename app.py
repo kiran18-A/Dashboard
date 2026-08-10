@@ -542,9 +542,15 @@ def update_salary(salary_id):
         mask = sal_df['id'] == salary_id
         if mask.any():
             if 'amount' in data:
-                sal_df.loc[mask, 'amount'] = data['amount']
+                sal_df.loc[mask, 'amount'] = float(data['amount'])
             if 'status' in data:
-                sal_df.loc[mask, 'status'] = data['status']
+                sal_df['status'] = sal_df['status'].astype(str)
+                sal_df.loc[mask, 'status'] = str(data['status'])
+                
+                if 'paid_date' not in sal_df.columns:
+                    sal_df['paid_date'] = ''
+                sal_df['paid_date'] = sal_df['paid_date'].astype(str)
+                
                 if data['status'] == 'Paid':
                     sal_df.loc[mask, 'paid_date'] = datetime.now().strftime('%b %d, %Y')
                 else:
@@ -1029,11 +1035,13 @@ def update_expense(expense_id):
             mask = df['id'] == expense_id
             if mask.any():
                 if 'name' in data:
-                    df.loc[mask, 'name'] = data['name']
+                    df['name'] = df['name'].astype(str)
+                    df.loc[mask, 'name'] = str(data['name'])
                 if 'amount' in data:
-                    df.loc[mask, 'amount'] = data['amount']
+                    df.loc[mask, 'amount'] = float(data['amount'])
                 if 'date' in data:
-                    df.loc[mask, 'date'] = data['date']
+                    df['date'] = df['date'].astype(str)
+                    df.loc[mask, 'date'] = str(data['date'])
                 df.to_excel(get_db_path('expenses'), index=False, engine='openpyxl')
                 return jsonify({'success': True})
         return jsonify({'success': False, 'message': 'Expense not found'}), 404
@@ -1086,11 +1094,13 @@ def update_income(income_id):
             mask = df['id'] == income_id
             if mask.any():
                 if 'name' in data:
-                    df.loc[mask, 'name'] = data['name']
+                    df['name'] = df['name'].astype(str)
+                    df.loc[mask, 'name'] = str(data['name'])
                 if 'amount' in data:
-                    df.loc[mask, 'amount'] = data['amount']
+                    df.loc[mask, 'amount'] = float(data['amount'])
                 if 'date' in data:
-                    df.loc[mask, 'date'] = data['date']
+                    df['date'] = df['date'].astype(str)
+                    df.loc[mask, 'date'] = str(data['date'])
                 df.to_excel(get_db_path('incomes'), index=False, engine='openpyxl')
                 return jsonify({'success': True})
         return jsonify({'success': False, 'message': 'Income not found'}), 404
