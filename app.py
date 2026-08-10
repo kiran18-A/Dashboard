@@ -2,9 +2,13 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 import pandas as pd
 import os
 from datetime import datetime, date
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'super-secret-key-for-dashboard'
+UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 DATA_DIR = 'data'
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -44,7 +48,8 @@ def init_excel():
         'clients': pd.DataFrame(columns=['id', 'name', 'company', 'email']),
         'salary': pd.DataFrame(columns=['id', 'employee_id', 'amount', 'month', 'status', 'paid_date']),
         'expenses': pd.DataFrame(columns=['id', 'name', 'category', 'amount', 'date', 'status']),
-        'leaves': pd.DataFrame(columns=['id', 'emp_id', 'start_date', 'end_date', 'reason', 'status'])
+        'leaves': pd.DataFrame(columns=['id', 'emp_id', 'start_date', 'end_date', 'reason', 'status']),
+        'documents': pd.DataFrame(columns=['id', 'emp_id', 'doc_type', 'filename', 'upload_date'])
     }
     
     for name, df in files_to_create.items():
@@ -66,6 +71,17 @@ def index():
 def serve_page(page):
     try:
         context = {'name': session.get('name', 'User')}
+        
+        # Get profile photo
+        if 'user_id' in session:
+            users_df = read_excel_cached(get_db_path('users'))
+            if not users_df.empty and 'profile_photo' in users_df.columns:
+                u_row = users_df[users_df['id'] == session.get('user_id')]
+                if not u_row.empty:
+                    p_photo = u_row.iloc[0].get('profile_photo')
+                    if p_photo and str(p_photo) != 'nan':
+                        context['profile_photo'] = f"/static/uploads/profiles/{p_photo}"
+                        
         if page in ['profile', 'employee-dashboard'] and 'user_id' in session:
             emp_df = read_excel_cached(get_db_path('employees'))
             emp_df = emp_df.fillna('')
@@ -73,6 +89,23 @@ def serve_page(page):
             emp = emp_df[(emp_df['name'] == session.get('name')) | (emp_df['employee_id'] == session.get('user_id'))]
             if not emp.empty:
                 emp_row = emp.iloc[0]
+                # Dynamically get assigned projects
+                proj_df = read_excel_cached(get_db_path('projects')).fillna('')
+                active_projects = proj_df[~proj_df['status'].isin(['Completed', 'Closed'])]
+                my_projs = active_projects[active_projects['team'].astype(str).str.contains(session.get('name', ''), na=False, case=False)]
+                assigned_projects = ", ".join(my_projs['name'].tolist()) if not my_projs.empty else 'None'
+                # Calculate days worked this month
+                att_df = read_excel_cached(get_db_path('attendance')).fillna('')
+                days_worked = 0
+                if not att_df.empty and 'user_id' in att_df.columns:
+                    current_month = datetime.now().strftime('%Y-%m')
+                    my_att = att_df[(att_df['user_id'] == session.get('user_id'))]
+                    if not my_att.empty:
+                        # Filter by date starting with YYYY-MM
+                        month_att = my_att[my_att['date'].astype(str).str.startswith(current_month)]
+                        # Get unique dates where status was Present
+                        days_worked = month_att['date'].nunique()
+                
                 context.update({
                     'designation': emp_row.get('designation', 'N/A'),
                     'employee_id': emp_row.get('employee_id', 'N/A'),
@@ -81,8 +114,21 @@ def serve_page(page):
                     'phone': emp_row.get('phone', 'N/A'),
                     'joining_date': emp_row.get('joining_date', 'N/A'),
                     'status': emp_row.get('status', 'Active'),
-                    'current_project': emp_row.get('current_project', 'E-Commerce'),
-                    'emergency_number': emp_row.get('emergency_number', 'N/A')
+                    'current_project': assigned_projects,
+                    'emergency_number': emp_row.get('emergency_number', 'N/A'),
+                    'days_worked_month': days_worked
+                })
+            else:
+                context.update({
+                    'designation': session.get('role', 'N/A').title(),
+                    'employee_id': 'ADMIN-01' if session.get('role') == 'admin' else 'N/A',
+                    'department': 'Administration' if session.get('role') == 'admin' else 'N/A',
+                    'email': 'admin@itcorp.com' if session.get('role') == 'admin' else 'N/A',
+                    'phone': 'N/A',
+                    'joining_date': 'N/A',
+                    'status': 'Active',
+                    'current_project': 'N/A',
+                    'emergency_number': 'N/A'
                 })
         return render_template(f'{page}.html', **context)
     except Exception as e:
@@ -100,6 +146,15 @@ def api_login():
     
     if not user.empty:
         user_row = user.iloc[0]
+        
+        if str(user_row['role']) == 'employee':
+            emp_df = read_excel_cached(get_db_path('employees')).fillna('')
+            if not emp_df.empty:
+                emp = emp_df[emp_df['name'] == str(user_row['name'])]
+                if not emp.empty:
+                    if str(emp.iloc[0].get('status', 'Active')).lower() == 'inactive':
+                        return jsonify({'success': False, 'message': 'Your account is inactive. Please contact the administrator.'}), 403
+                        
         session['user_id'] = int(user_row['id'])
         session['role'] = str(user_row['role'])
         session['name'] = str(user_row['name'])
@@ -167,6 +222,28 @@ def api_checkout():
             return jsonify({'success': True, 'time': datetime.now().strftime("%I:%M %p")})
             
     return jsonify({'success': False, 'message': 'No check-in record found for today'})
+
+@app.route('/api/my_status', methods=['GET'])
+def get_my_status():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'checked_in': False})
+    
+    today_str = str(date.today())
+    att_df = read_excel_cached(get_db_path('attendance'))
+    if not att_df.empty:
+        mask = (att_df['user_id'] == user_id) & (att_df['date'].astype(str) == today_str)
+        if mask.any():
+            row = att_df[mask].iloc[-1]  # Get latest in case of multiple
+            check_in = str(row.get('check_in', ''))
+            check_out = str(row.get('check_out', ''))
+            is_checked_in = (check_in and check_in != 'nan') and (not check_out or check_out == 'nan')
+            return jsonify({
+                'checked_in': is_checked_in,
+                'check_in_time': check_in if check_in != 'nan' else '',
+                'check_out_time': check_out if check_out != 'nan' else ''
+            })
+    return jsonify({'checked_in': False})
 
 @app.route('/api/attendance', methods=['GET'])
 def get_attendance():
@@ -343,13 +420,14 @@ def get_salary():
         for _, emp in emp_df.iterrows():
             emp_id = emp['employee_id']
             
-            # Check eligibility: joined before 1st of this month
-            eligible = True
+            # Check eligibility: joined before or during this month, and is Active
+            eligible = str(emp.get('status', 'Active')).strip() == 'Active'
             joining_date_str = str(emp.get('joining_date', ''))
             if joining_date_str and joining_date_str != 'nan':
                 try:
                     join_dt = datetime.strptime(joining_date_str, '%Y-%m-%d')
-                    if join_dt >= current_month_first_day:
+                    now = datetime.now()
+                    if (join_dt.year, join_dt.month) > (now.year, now.month):
                         eligible = False
                 except ValueError:
                     pass
@@ -359,10 +437,12 @@ def get_salary():
                 has_record = ((sal_df['employee_id'] == emp_id) & (sal_df['month'] == current_month)).any()
                 
             if not has_record and emp['name'] and eligible:
+                raw_sal = emp.get('salary')
+                sal_val = float(raw_sal) if pd.notna(raw_sal) and str(raw_sal).strip() != '' else 5000.0
                 new_records.append({
                     'id': new_id,
                     'employee_id': emp_id,
-                    'amount': float(emp.get('salary', 5000) or 5000),
+                    'amount': sal_val,
                     'month': current_month,
                     'status': 'Pending',
                     'paid_date': ''
@@ -375,6 +455,27 @@ def get_salary():
                 sal_df = new_df
             else:
                 sal_df = pd.concat([sal_df, new_df], ignore_index=True)
+            sal_df.to_excel(get_db_path('salary'), index=False, engine='openpyxl')
+            
+    # Sync "Pending" salaries with live employee data
+    if not sal_df.empty and not emp_df.empty:
+        # Create a dictionary of employee_id to live salary
+        emp_salaries = {}
+        for _, emp in emp_df.iterrows():
+            raw_sal = emp.get('salary')
+            sal_val = float(raw_sal) if pd.notna(raw_sal) and str(raw_sal).strip() != '' else 5000.0
+            emp_salaries[emp['employee_id']] = sal_val
+            
+        # Update Pending salaries
+        updated = False
+        for i, row in sal_df.iterrows():
+            if row['status'] == 'Pending' and row['employee_id'] in emp_salaries:
+                live_sal = emp_salaries[row['employee_id']]
+                if float(row['amount']) != live_sal:
+                    sal_df.at[i, 'amount'] = live_sal
+                    updated = True
+                    
+        if updated:
             sal_df.to_excel(get_db_path('salary'), index=False, engine='openpyxl')
             
     # Merge with employees to get names
@@ -415,18 +516,24 @@ def save_daily_work():
         max_id = df['id'].max()
         new_id = int(max_id) + 1 if not df.empty and pd.notna(max_id) else 1
         
+        t_input = data.get('time')
         current_time = datetime.now().strftime('%I:%M %p')
-        
+        if t_input:
+            try:
+                current_time = datetime.strptime(t_input, '%H:%M').strftime('%I:%M %p')
+            except:
+                pass
+                
         new_row = pd.DataFrame([{
             'id': new_id,
             'user_id': '',
-            'emp_id': session.get('user_id', ''),
-            'date': datetime.now().strftime('%Y-%m-%d'),
+            'emp_id': data.get('emp_id') or session.get('user_id', ''),
+            'date': data.get('date') or datetime.now().strftime('%Y-%m-%d'),
             'time': current_time,
             'project': data.get('project', ''),
             'description': data.get('description', ''),
-            'hours': float(data.get('hours', 0)) if data.get('hours') else '',
-            'status': 'Pending Review'
+            'hours': '',
+            'status': data.get('status') or 'Pending Review'
         }])
         
         df = pd.concat([df, new_row], ignore_index=True)
@@ -549,10 +656,15 @@ def my_pending_projects():
             # Filter where status is NOT Completed/Closed and user name is in team
             # Note: session['name'] has the employee's name (e.g. Kiran)
             user_name = session.get('name', '')
+            role = session.get('role', '')
             # Pending statuses
             pending = df[~df['status'].isin(['Completed', 'Closed'])]
-            # Team includes user
-            my_projs = pending[pending['team'].astype(str).str.contains(user_name, na=False, case=False)]
+            
+            if role == 'admin':
+                my_projs = pending
+            else:
+                # Team includes user
+                my_projs = pending[pending['team'].astype(str).str.contains(user_name, na=False, case=False)]
             
             res = my_projs[['id', 'name', 'status']].to_dict('records')
             return jsonify(res)
@@ -597,6 +709,60 @@ def get_employees():
     path = get_db_path('employees')
     if os.path.exists(path):
         df = read_excel_cached(path).fillna('')
+        
+        # Calculate active project count for each employee
+        proj_df = read_excel_cached(get_db_path('projects')).fillna('')
+        active_projects = proj_df[~proj_df['status'].isin(['Completed', 'Closed'])]
+        
+        def count_projects(emp_name):
+            if not emp_name: return 0
+            return len(active_projects[active_projects['team'].astype(str).str.contains(str(emp_name), na=False, case=False)])
+            
+        df['project_count'] = df['name'].apply(count_projects)
+        
+        # Add username from users.xlsx
+        users_df = read_excel_cached(get_db_path('users')).fillna('')
+        if not users_df.empty and 'username' in users_df.columns and 'name' in users_df.columns:
+            name_to_username = dict(zip(users_df['name'], users_df['username']))
+            name_to_userid = dict(zip(users_df['name'], users_df['id']))
+            df['username'] = df['name'].map(name_to_username).fillna('Not set')
+            df['user_id'] = df['name'].map(name_to_userid)
+        else:
+            df['username'] = 'Not set'
+            df['user_id'] = None
+            
+        # Add pending leave data
+        leaves_df = read_excel_cached(get_db_path('leaves')).fillna('')
+        if not leaves_df.empty and 'emp_id' in leaves_df.columns and 'status' in leaves_df.columns:
+            pending_leaves = leaves_df[leaves_df['status'].astype(str).str.lower() == 'pending']
+            
+            def get_pending_leave(u_id):
+                if pd.isna(u_id): return None
+                emp_leaves = pending_leaves[pending_leaves['emp_id'].astype(str) == str(int(u_id))]
+                if not emp_leaves.empty:
+                    leave = emp_leaves.iloc[0].to_dict()
+                    return leave
+                return None
+                
+            df['pending_leave'] = df['user_id'].apply(get_pending_leave)
+        else:
+            df['pending_leave'] = None
+            
+        # Add is_present_today flag
+        att_df = read_excel_cached(get_db_path('attendance')).fillna('')
+        today_str = str(date.today())
+        if not att_df.empty and 'emp_id' in att_df.columns and 'date' in att_df.columns:
+            today_att = att_df[att_df['date'] == today_str]
+            def check_presence(emp_id):
+                emp_att = today_att[today_att['emp_id'].astype(str) == str(emp_id)]
+                if not emp_att.empty:
+                    # They have a record for today. Let's say if they have any record, they logged in.
+                    return True
+                return False
+            df['is_present_today'] = df['employee_id'].apply(check_presence)
+        else:
+            df['is_present_today'] = False
+        
         return jsonify(df.to_dict('records'))
     return jsonify([])
 
@@ -686,6 +852,13 @@ def get_employee_details(emp_id):
             
         emp_data = emp.iloc[0].to_dict()
         
+        # Dynamically get assigned projects
+        proj_df = read_excel_cached(get_db_path('projects')).fillna('')
+        active_projects = proj_df[~proj_df['status'].isin(['Completed', 'Closed'])]
+        my_projs = active_projects[active_projects['team'].astype(str).str.contains(emp_data.get('name', ''), na=False, case=False)]
+        emp_data['current_project'] = ", ".join(my_projs['name'].tolist()) if not my_projs.empty else 'None'
+
+        
         # Get attendance
         att_df = read_excel_cached(get_db_path('attendance')).fillna('')
         att_data = att_df[att_df['emp_id'] == emp_data.get('employee_id')].to_dict('records')
@@ -694,10 +867,26 @@ def get_employee_details(emp_id):
         work_df = read_excel_cached(get_db_path('daily_work')).fillna('')
         work_data = work_df[work_df['emp_id'] == emp_data.get('employee_id')].to_dict('records')
         
+        # Get documents
+        # First find the user_id for this employee name
+        users_df = read_excel_cached(get_db_path('users')).fillna('')
+        user_id = None
+        if not users_df.empty and 'name' in users_df.columns and 'id' in users_df.columns:
+            matching_users = users_df[users_df['name'] == emp_data.get('name', '')]
+            if not matching_users.empty:
+                user_id = matching_users.iloc[0]['id']
+                
+        doc_data = []
+        if user_id is not None:
+            doc_df = read_excel_cached(get_db_path('documents')).fillna('')
+            if not doc_df.empty:
+                doc_data = doc_df[doc_df['emp_id'].astype(str) == str(user_id)].to_dict('records')
+        
         return jsonify({
             'profile': emp_data,
             'attendance': att_data,
-            'work': work_data
+            'work': work_data,
+            'documents': doc_data
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -816,6 +1005,13 @@ def get_daily_work():
     path = get_db_path('daily_work')
     if os.path.exists(path):
         df = read_excel_cached(path).fillna('')
+        
+        # Add employee name based on user_id/emp_id
+        users_df = read_excel_cached(get_db_path('users')).fillna('')
+        if not users_df.empty and 'id' in users_df.columns and 'name' in users_df.columns:
+            id_to_name = dict(zip(users_df['id'].astype(str), users_df['name']))
+            df['name'] = df['emp_id'].astype(str).map(id_to_name).fillna(df['emp_id'])
+            
         return jsonify(df.to_dict('records'))
     return jsonify([])
 
@@ -826,6 +1022,13 @@ def get_all_leaves():
     path = get_db_path('leaves')
     if os.path.exists(path):
         df = read_excel_cached(path).fillna('')
+        
+        # Add employee name
+        users_df = read_excel_cached(get_db_path('users')).fillna('')
+        if not users_df.empty and 'id' in users_df.columns and 'name' in users_df.columns:
+            id_to_name = dict(zip(users_df['id'].astype(str), users_df['name']))
+            df['name'] = df['emp_id'].astype(str).map(id_to_name).fillna(df['emp_id'])
+            
         return jsonify(df.to_dict('records'))
     return jsonify([])
 
@@ -858,18 +1061,24 @@ def apply_leave():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/update_status', methods=['POST'])
-def update_leave_status():
+def update_status():
     if 'user_id' not in session or session.get('role') != 'admin':
         return jsonify({'error': 'Unauthorized'}), 401
     try:
         data = request.json
-        leave_id = data.get('id')
+        item_id = data.get('id')
         status = data.get('status')
-        df = read_excel_cached(get_db_path('leaves'))
-        idx = df.index[df['id'] == leave_id].tolist()
+        table_type = data.get('type')
+        
+        valid_tables = ['employees', 'attendance', 'salary', 'projects', 'daily_work', 'clients', 'leaves']
+        if table_type not in valid_tables:
+            return jsonify({'error': 'Invalid table type'}), 400
+            
+        df = read_excel_cached(get_db_path(table_type))
+        idx = df.index[df['id'] == item_id].tolist()
         if idx:
             df.at[idx[0], 'status'] = status
-            df.to_excel(get_db_path('leaves'), index=False, engine='openpyxl')
+            df.to_excel(get_db_path(table_type), index=False, engine='openpyxl')
             return jsonify({'success': True})
     except Exception as e:
         pass
@@ -882,17 +1091,113 @@ def review_work():
     try:
         data = request.json
         work_id = data.get('id')
-        status = data.get('status')
+        review_text = data.get('review')
         df = read_excel_cached(get_db_path('daily_work'))
-        idx = df.index[df['id'] == work_id].tolist()
+        
+        # Ensure column exists
+        if 'admin_review' not in df.columns:
+            df['admin_review'] = ''
+            
+        idx = df.index[df['id'] == int(work_id)].tolist()
         if idx:
-            df.at[idx[0], 'status'] = status
+            df.at[idx[0], 'admin_review'] = review_text
             df.to_excel(get_db_path('daily_work'), index=False, engine='openpyxl')
             return jsonify({'success': True})
     except Exception as e:
+        print(f"Error in review_work: {e}")
         pass
     return jsonify({'error': 'Failed'}), 500
 
+
+
+
+@app.route('/api/upload-profile-photo', methods=['POST'])
+def api_upload_profile_photo():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    
+    if 'photo' not in request.files:
+        return jsonify({'success': False, 'message': 'No file part'}), 400
+        
+    file = request.files['photo']
+    if file.filename == '':
+        return jsonify({'success': False, 'message': 'No selected file'}), 400
+        
+    if file:
+        filename = secure_filename(f"profile_{user_id}_{file.filename}")
+        profile_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'profiles')
+        os.makedirs(profile_dir, exist_ok=True)
+        file_path = os.path.join(profile_dir, filename)
+        file.save(file_path)
+        
+        # Save to users database
+        db_path = get_db_path('users')
+        df = read_excel_cached(db_path)
+        if not df.empty:
+            if 'profile_photo' not in df.columns:
+                df['profile_photo'] = ''
+            
+            idx = df.index[df['id'] == user_id].tolist()
+            if idx:
+                df.at[idx[0], 'profile_photo'] = filename
+                df.to_excel(db_path, index=False, engine='openpyxl')
+                return jsonify({'success': True, 'photo_url': f"/static/uploads/profiles/{filename}"})
+                
+    return jsonify({'success': False, 'message': 'Upload failed'}), 500
+
+@app.route('/api/upload-document', methods=['POST'])
+def api_upload_document():
+    user_id = session.get('user_id')
+    if not user_id or session.get('role') != 'employee':
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    
+    if 'document' not in request.files:
+        return jsonify({'success': False, 'message': 'No file part'}), 400
+        
+    file = request.files['document']
+    doc_type = request.form.get('doc_type', 'Unknown')
+    
+    if file.filename == '':
+        return jsonify({'success': False, 'message': 'No selected file'}), 400
+        
+    if file:
+        filename = secure_filename(f"{user_id}_{doc_type.replace(' ', '_')}_{file.filename}")
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(file_path)
+        
+        # Save to database
+        db_path = get_db_path('documents')
+        df = read_excel_cached(db_path)
+        max_id = df['id'].max() if not df.empty else 0
+        new_id = int(max_id) + 1 if pd.notna(max_id) else 1
+        
+        new_doc = pd.DataFrame([{
+            'id': new_id,
+            'emp_id': user_id,
+            'doc_type': doc_type,
+            'filename': filename,
+            'upload_date': str(date.today())
+        }])
+        
+        df = pd.concat([df, new_doc], ignore_index=True)
+        df.to_excel(db_path, index=False, engine='openpyxl')
+        
+        return jsonify({'success': True, 'message': 'Document uploaded successfully'})
+    return jsonify({'success': False, 'message': 'Upload failed'})
+
+@app.route('/api/my-documents', methods=['GET'])
+def api_my_documents_legacy():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify([])
+        
+    df = read_excel_cached(get_db_path('documents'))
+    if df.empty:
+        return jsonify([])
+        
+    my_docs = df[df['emp_id'].astype(str) == str(user_id)].fillna('')
+    return jsonify(my_docs.to_dict('records'))
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

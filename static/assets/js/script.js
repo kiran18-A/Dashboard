@@ -350,12 +350,17 @@ document.addEventListener('DOMContentLoaded', () => {
             filteredEmployees.forEach(emp => {
                 const statusBadge = emp.status === 'Active' ? 'bg-success' : 'bg-danger';
                 const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=random`;
+                const presenceColor = emp.is_present_today ? 'bg-success' : 'bg-danger';
+                const presenceTitle = emp.is_present_today ? 'Logged in today' : 'Not logged in today';
                 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>
                         <div class="d-flex align-items-center">
-                            <img src="${avatarUrl}" class="profile-img-sm me-3" alt="${emp.name}">
+                            <div class="position-relative me-3">
+                                <img src="${avatarUrl}" class="profile-img-sm" alt="${emp.name}">
+                                <span class="position-absolute bottom-0 end-0 p-1 border border-2 border-white rounded-circle ${presenceColor}" title="${presenceTitle}" style="width: 12px; height: 12px;"></span>
+                            </div>
                             <div>
                                 <h6 class="mb-0 fw-semibold"><a href="#" class="text-decoration-none view-emp-details text-primary" data-id="${emp.id}">${emp.name}</a></h6>
                                 <small class="text-muted">${emp.employee_id}</small>
@@ -364,6 +369,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     </td>
                     <td>${emp.department}</td>
                     <td>${emp.email || 'Not set'}</td>
+                    <td>${emp.username || 'Not set'}</td>
+                    <td><span class="badge bg-secondary rounded-pill px-3 py-2">${emp.project_count || 0}</span></td>
                     <td>${generateStatusSelect('employees', emp.id, emp.status, ['Active', 'Inactive'], statusBadge)}</td>
                     <td>
                         <button class="btn btn-sm btn-light text-danger delete-emp-btn" data-id="${emp.id}"><i class="fas fa-trash"></i></button>
@@ -527,39 +534,76 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     data.attendance.forEach(att => {
                         let statusBadge = att.status === 'Present' ? 'bg-success' : (att.status === 'Late' ? 'bg-warning' : 'bg-danger');
+                        
+                        let checkInStr = att.check_in || '';
+                        let checkOutStr = att.check_out || '';
+                        let workingHoursHtml = att.working_hours || '--:--';
+                        
+                        if (checkInStr && checkInStr !== 'nan' && (!checkOutStr || checkOutStr === 'nan' || checkOutStr === '--:--')) {
+                            workingHoursHtml = `<span class="live-modal-timer" data-checkin="${checkInStr}">00:00:00</span> <i class="fas fa-circle text-success small ms-1" style="animation: pulse 1.5s infinite"></i>`;
+                        } else if (checkInStr && checkInStr !== 'nan' && checkOutStr && checkOutStr !== 'nan' && !att.working_hours) {
+                            const ci = new Date(checkInStr.replace(' ', 'T'));
+                            const co = new Date(checkOutStr.replace(' ', 'T'));
+                            const diffMs = co - ci;
+                            if (diffMs > 0) {
+                                const h = Math.floor(diffMs / 3600000);
+                                const m = Math.floor((diffMs % 3600000) / 60000);
+                                const s = Math.floor((diffMs % 60000) / 1000);
+                                workingHoursHtml = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+                            }
+                        }
+
                         attBody.innerHTML += `
                             <tr>
                                 <td>${att.date}</td>
-                                <td>${att.check_in || '--:--'}</td>
-                                <td>${att.check_out || '--:--'}</td>
-                                <td>${att.working_hours}</td>
+                                <td>${checkInStr && checkInStr !== 'nan' ? checkInStr : '--:--'}</td>
+                                <td>${checkOutStr && checkOutStr !== 'nan' ? checkOutStr : '--:--'}</td>
+                                <td>${workingHoursHtml}</td>
                                 <td><span class="badge ${statusBadge}">${att.status}</span></td>
                             </tr>
                         `;
                     });
+                    
+                    // Start live timer for modal if any elements exist
+                    if (window.modalTimerInterval) clearInterval(window.modalTimerInterval);
+                    window.modalTimerInterval = setInterval(() => {
+                        const timers = document.querySelectorAll('.live-modal-timer');
+                        if (timers.length === 0) return;
+                        
+                        const now = new Date();
+                        timers.forEach(timer => {
+                            const ci = new Date(timer.getAttribute('data-checkin').replace(' ', 'T'));
+                            const diffMs = now - ci;
+                            if (diffMs > 0) {
+                                const hrs = Math.floor(diffMs / 3600000);
+                                const mins = Math.floor((diffMs % 3600000) / 60000);
+                                const secs = Math.floor((diffMs % 60000) / 1000);
+                                timer.textContent = 
+                                    String(hrs).padStart(2, '0') + ':' + 
+                                    String(mins).padStart(2, '0') + ':' + 
+                                    String(secs).padStart(2, '0');
+                            }
+                        });
+                    }, 1000);
                 }
                 
-                // Populate Work
-                // Populate Work
-                const workBody = document.getElementById('detailWorkBody');
-                workBody.innerHTML = '';
-                if (data.work.length === 0) {
-                    workBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No daily work records found.</td></tr>';
+                // Populate Documents
+                const docsBody = document.getElementById('detailDocumentsBody');
+                docsBody.innerHTML = '';
+                if (!data.documents || data.documents.length === 0) {
+                    docsBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No documents uploaded.</td></tr>';
                 } else {
-                    data.work.forEach(w => {
-                        let statusBadge = w.status === 'Approved' ? 'bg-success' : 'bg-warning text-dark';
-                        let totalSeconds = Math.round(parseFloat(w.hours || 0) * 3600);
-                        let h = Math.floor(totalSeconds / 3600);
-                        let m = Math.floor((totalSeconds % 3600) / 60);
-                        let s = totalSeconds % 60;
-                        let formattedTime = `${h.toString().padStart(2, '0')}.${m.toString().padStart(2, '0')}.${s.toString().padStart(2, '0')}`;
-                        
-                        workBody.innerHTML += `
+                    data.documents.forEach(doc => {
+                        docsBody.innerHTML += `
                             <tr>
-                                <td>${w.date}</td>
-                                <td>${w.description}</td>
-                                <td>${formattedTime}</td>
-                                <td><span class="badge ${statusBadge}">${w.status}</span></td>
+                                <td class="fw-semibold">${doc.doc_type || 'Unknown'}</td>
+                                <td>${doc.filename || ''}</td>
+                                <td>${doc.upload_date || ''}</td>
+                                <td>
+                                    <a href="/static/uploads/${doc.filename}" target="_blank" class="btn btn-sm btn-outline-primary shadow-sm rounded-pill px-3">
+                                        <i class="fas fa-eye me-1"></i> View
+                                    </a>
+                                </td>
                             </tr>
                         `;
                     });
@@ -1637,3 +1681,177 @@ async function loadTodaysSubmissions() {
         console.error("Failed to load today's submissions", err);
     }
 }
+
+// ==========================================
+// RESTORED FEATURES
+// ==========================================
+
+// 1. Live Working Hours Timer
+const liveTimerEl = document.getElementById('liveTimer');
+let timerInterval = null;
+
+async function initLiveTimer() {
+    if (!liveTimerEl) return;
+    try {
+        const res = await fetch('/api/my_status');
+        const data = await res.json();
+        
+        if (data.checked_in && data.check_in_time) {
+            // Parse full date string e.g., "2026-08-10 13:41:23"
+            const checkInTime = new Date(data.check_in_time.replace(' ', 'T'));
+
+            if (timerInterval) clearInterval(timerInterval);
+            
+            const updateTimer = () => {
+                const now = new Date();
+                const diffMs = now - checkInTime;
+                if (diffMs < 0) return;
+                
+                const hrs = Math.floor(diffMs / 3600000);
+                const mins = Math.floor((diffMs % 3600000) / 60000);
+                const secs = Math.floor((diffMs % 60000) / 1000);
+                
+                liveTimerEl.textContent = 
+                    String(hrs).padStart(2, '0') + ':' + 
+                    String(mins).padStart(2, '0') + ':' + 
+                    String(secs).padStart(2, '0');
+            };
+            
+            updateTimer();
+            timerInterval = setInterval(updateTimer, 1000);
+        } else {
+            if (timerInterval) clearInterval(timerInterval);
+            liveTimerEl.textContent = '00:00:00';
+        }
+    } catch (err) {
+        console.error("Timer error", err);
+    }
+}
+
+// 2. Profile Photo Upload
+document.addEventListener('DOMContentLoaded', () => {
+    const photoInput = document.getElementById('profilePhotoInput');
+    if (photoInput) {
+        photoInput.addEventListener('change', async (e) => {
+            if (!e.target.files || e.target.files.length === 0) return;
+            const file = e.target.files[0];
+            const formData = new FormData();
+            formData.append('photo', file);
+            
+            try {
+                const res = await fetch('/api/upload-profile-photo', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to upload photo');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('An error occurred during upload');
+            }
+        });
+    }
+});
+
+// 3. Load My Documents
+async function loadMyDocuments() {
+    const tableBody = document.getElementById('myDocumentsTableBody');
+    if (!tableBody) return;
+    
+    try {
+        const res = await fetch('/api/my-documents');
+        const data = await res.json();
+        
+        if (data.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No documents uploaded yet.</td></tr>';
+            return;
+        }
+        
+        let html = '';
+        data.forEach(doc => {
+            html += `
+                <tr>
+                    <td class="fw-semibold">${doc.doc_type || 'Unknown'}</td>
+                    <td>${doc.filename || ''}</td>
+                    <td>${doc.upload_date || ''}</td>
+                    <td>
+                        <a href="/static/uploads/${doc.filename}" target="_blank" class="btn btn-sm btn-outline-primary shadow-sm rounded-pill px-3">
+                            <i class="fas fa-eye me-1"></i> View
+                        </a>
+                    </td>
+                </tr>
+            `;
+        });
+        tableBody.innerHTML = html;
+    } catch (err) {
+        console.error("Failed to load documents", err);
+        tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Error loading documents.</td></tr>';
+    }
+}
+
+// 4. Document Upload Handling
+document.addEventListener('DOMContentLoaded', () => {
+    initLiveTimer();
+    loadMyDocuments();
+    
+    // Add hooks to checkin/checkout buttons to start/stop live timer without modifying their original callbacks heavily
+    const checkInBtn = document.getElementById('checkInBtn');
+    if (checkInBtn) {
+        checkInBtn.addEventListener('click', () => {
+            setTimeout(initLiveTimer, 1000); // Wait 1 sec for API to update
+        });
+    }
+    
+    const checkOutBtn = document.getElementById('checkOutBtn');
+    if (checkOutBtn) {
+        checkOutBtn.addEventListener('click', () => {
+            setTimeout(initLiveTimer, 1000);
+        });
+    }
+    
+    const docForm = document.getElementById('documentUploadForm');
+    if (docForm) {
+        docForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const fileInput = docForm.querySelector('input[type="file"]');
+            const typeInput = docForm.querySelector('select');
+            
+            if (!fileInput.files.length) {
+                alert('Please select a file');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('document', fileInput.files[0]);
+            formData.append('doc_type', typeInput.value);
+            
+            try {
+                const res = await fetch('/api/upload-document', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    const successMsg = document.getElementById('docSuccessMessage');
+                    if (successMsg) {
+                        successMsg.classList.remove('d-none');
+                        setTimeout(() => successMsg.classList.add('d-none'), 3000);
+                    }
+                    docForm.reset();
+                    if (typeof loadMyDocuments === 'function') loadMyDocuments();
+                } else {
+                    alert(data.message || 'Upload failed');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error uploading document');
+            }
+        });
+    }
+});
