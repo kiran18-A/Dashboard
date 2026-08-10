@@ -33,6 +33,10 @@
   color: #f9fafb !important;
 }
 
+[data-theme="dark"] .bg-light {
+  background-color: var(--secondary-color) !important;
+}
+
 body {
   font-family: 'Inter', sans-serif;
   background-color: var(--bg-color);
