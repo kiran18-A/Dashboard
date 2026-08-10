@@ -41,14 +41,14 @@ async function renderCharts() {
     let dashboardData = null;
     
     // Fetch live data if we are on the admin dashboard or projects page
-    if (document.getElementById('statTotalEmployees') || document.getElementById('projectChart')) {
+    if (document.getElementById('statTotalExpenses') || document.getElementById('projectChart')) {
         try {
             const res = await fetch('/api/admin/dashboard');
             dashboardData = await res.json();
             
             // Update Stat Cards
-            if (document.getElementById('statTotalEmployees')) document.getElementById('statTotalEmployees').innerText = dashboardData.total_employees;
-            if (document.getElementById('statPresentToday')) document.getElementById('statPresentToday').innerText = dashboardData.present_today;
+            if (document.getElementById('statTotalExpenses')) document.getElementById('statTotalExpenses').innerText = '₹' + parseFloat(dashboardData.total_expenses).toLocaleString();
+            if (document.getElementById('statTotalIncome')) document.getElementById('statTotalIncome').innerText = '₹' + parseFloat(dashboardData.total_income).toLocaleString();
             if (document.getElementById('statRunningProjects')) document.getElementById('statRunningProjects').innerText = dashboardData.running_projects;
             
             if (document.getElementById('statTotalClients')) {
@@ -102,6 +102,27 @@ async function renderCharts() {
                 datasets: [{
                     data: dashboardData.project_status.data.length > 0 ? dashboardData.project_status.data : [1],
                     backgroundColor: palette.slice(0, Math.max(1, dashboardData.project_status.labels.length)),
+                    borderWidth: 0
+                }]
+            },
+            options: pieOptions
+        });
+        currentCharts.push(chart);
+    }
+    
+    // Financial Overview Chart (Admin Dashboard)
+    const financeCtx = document.getElementById('financeChart');
+    if (financeCtx && dashboardData) {
+        const pieOptions = { ...commonOptions };
+        delete pieOptions.scales; // Pie charts don't have x/y scales
+        
+        const chart = new Chart(financeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Total Income', 'Total Expenses'],
+                datasets: [{
+                    data: [dashboardData.total_income || 0, dashboardData.total_expenses || 0],
+                    backgroundColor: [colors.accent, colors.danger],
                     borderWidth: 0
                 }]
             },

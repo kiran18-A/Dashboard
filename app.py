@@ -49,7 +49,8 @@ def init_excel():
         'salary': pd.DataFrame(columns=['id', 'employee_id', 'amount', 'month', 'status', 'paid_date']),
         'expenses': pd.DataFrame(columns=['id', 'name', 'category', 'amount', 'date', 'status']),
         'leaves': pd.DataFrame(columns=['id', 'emp_id', 'start_date', 'end_date', 'reason', 'status']),
-        'documents': pd.DataFrame(columns=['id', 'emp_id', 'doc_type', 'filename', 'upload_date'])
+        'documents': pd.DataFrame(columns=['id', 'emp_id', 'doc_type', 'filename', 'upload_date']),
+        'incomes': pd.DataFrame(columns=['id', 'name', 'source', 'amount', 'date', 'status'])
     }
     
     for name, df in files_to_create.items():
@@ -277,12 +278,22 @@ def get_admin_dashboard():
     exp_df = read_excel_cached(get_db_path('expenses'))
     client_df = read_excel_cached(get_db_path('clients'))
     
-    # 1. Total Employees
-    total_employees = len(emp_df[emp_df['status'] == 'Active']) if not emp_df.empty and 'status' in emp_df.columns else 0
-    
-    # 2. Present Today
-    today_str = str(date.today())
-    present_today = len(att_df[(att_df['date'] == today_str) & (att_df['status'] == 'Present')]) if not att_df.empty and 'date' in att_df.columns else 0
+    # 1. Total Expenses
+    total_expenses = 0
+    if not exp_df.empty and 'amount' in exp_df.columns:
+        # Sum of all expenses
+        total_expenses = float(pd.to_numeric(exp_df['amount'], errors='coerce').fillna(0).sum())
+        
+    if not emp_df.empty and 'salary' in emp_df.columns and 'status' in emp_df.columns:
+        # Add sum of active employee salaries
+        active_salaries = pd.to_numeric(emp_df[emp_df['status'] == 'Active']['salary'], errors='coerce').fillna(0).sum()
+        total_expenses += float(active_salaries)
+        
+    # 2. Total Income
+    total_income = 0
+    inc_df = read_excel_cached(get_db_path('incomes'))
+    if not inc_df.empty and 'amount' in inc_df.columns:
+        total_income = float(pd.to_numeric(inc_df['amount'], errors='coerce').fillna(0).sum())
     
     # 3. Running Projects
     running_projects = len(proj_df[proj_df['status'] == 'Running']) if not proj_df.empty and 'status' in proj_df.columns else 0
@@ -318,8 +329,8 @@ def get_admin_dashboard():
                 project_data.append(int(count))
                 
     return jsonify({
-        'total_employees': total_employees,
-        'present_today': present_today,
+        'total_expenses': total_expenses,
+        'total_income': total_income,
         'running_projects': running_projects,
         'total_clients': total_clients,
         'total_leads': total_leads,
@@ -500,6 +511,31 @@ def pay_salary(salary_id):
         if mask.any():
             sal_df.loc[mask, 'status'] = 'Paid'
             sal_df.loc[mask, 'paid_date'] = datetime.now().strftime('%b %d, %Y')
+            sal_df.to_excel(get_db_path('salary'), index=False, engine='openpyxl')
+            return jsonify({'success': True})
+            
+    return jsonify({'success': False, 'message': 'Salary record not found'}), 404
+
+@app.route('/api/salary/<int:salary_id>', methods=['PUT'])
+def update_salary(salary_id):
+    if 'user_id' not in session or session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.json
+    sal_df = read_excel_cached(get_db_path('salary'))
+    
+    if not sal_df.empty:
+        mask = sal_df['id'] == salary_id
+        if mask.any():
+            if 'amount' in data:
+                sal_df.loc[mask, 'amount'] = data['amount']
+            if 'status' in data:
+                sal_df.loc[mask, 'status'] = data['status']
+                if data['status'] == 'Paid':
+                    sal_df.loc[mask, 'paid_date'] = datetime.now().strftime('%b %d, %Y')
+                else:
+                    sal_df.loc[mask, 'paid_date'] = ''
+                    
             sal_df.to_excel(get_db_path('salary'), index=False, engine='openpyxl')
             return jsonify({'success': True})
             
@@ -933,6 +969,85 @@ def add_expense():
         df = pd.concat([df, new_row], ignore_index=True)
         df.to_excel(get_db_path('expenses'), index=False, engine='openpyxl')
         return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/expenses/<int:expense_id>', methods=['PUT'])
+def update_expense(expense_id):
+    if 'user_id' not in session or session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 401
+    try:
+        data = request.json
+        df = read_excel_cached(get_db_path('expenses'))
+        if not df.empty:
+            mask = df['id'] == expense_id
+            if mask.any():
+                if 'name' in data:
+                    df.loc[mask, 'name'] = data['name']
+                if 'amount' in data:
+                    df.loc[mask, 'amount'] = data['amount']
+                if 'date' in data:
+                    df.loc[mask, 'date'] = data['date']
+                df.to_excel(get_db_path('expenses'), index=False, engine='openpyxl')
+                return jsonify({'success': True})
+        return jsonify({'success': False, 'message': 'Expense not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/incomes', methods=['GET'])
+def get_incomes():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    path = get_db_path('incomes')
+    if os.path.exists(path):
+        df = read_excel_cached(path).fillna('')
+        return jsonify(df.to_dict('records'))
+    return jsonify([])
+
+@app.route('/api/incomes', methods=['POST'])
+def add_income():
+    if 'user_id' not in session or session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 401
+    try:
+        data = request.json
+        df = read_excel_cached(get_db_path('incomes'))
+        max_id = df['id'].max() if not df.empty and 'id' in df.columns else 0
+        new_id = int(max_id) + 1 if pd.notna(max_id) else 1
+        
+        new_row = pd.DataFrame([{
+            'id': new_id,
+            'name': data.get('name', ''),
+            'source': data.get('source', ''),
+            'amount': data.get('amount', 0),
+            'date': data.get('date', ''),
+            'status': data.get('status', 'Received')
+        }])
+        
+        df = pd.concat([df, new_row], ignore_index=True)
+        df.to_excel(get_db_path('incomes'), index=False, engine='openpyxl')
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/incomes/<int:income_id>', methods=['PUT'])
+def update_income(income_id):
+    if 'user_id' not in session or session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 401
+    try:
+        data = request.json
+        df = read_excel_cached(get_db_path('incomes'))
+        if not df.empty:
+            mask = df['id'] == income_id
+            if mask.any():
+                if 'name' in data:
+                    df.loc[mask, 'name'] = data['name']
+                if 'amount' in data:
+                    df.loc[mask, 'amount'] = data['amount']
+                if 'date' in data:
+                    df.loc[mask, 'date'] = data['date']
+                df.to_excel(get_db_path('incomes'), index=False, engine='openpyxl')
+                return jsonify({'success': True})
+        return jsonify({'success': False, 'message': 'Income not found'}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

@@ -25,6 +25,7 @@
             <div class="collapse show" id="financeSubmenu">
                 <a href="salary.html" class="nav-link active" style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-money-bill-wave"></i> Salary</a>
                 <a href="expenses.html" class="nav-link " style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-file-invoice-dollar"></i> Expenses</a>
+                <a href="incomes.html" class="nav-link " style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-coins"></i> Income</a>
             </div>
                         <a href="policy.html" class="nav-link"><i class="fas fa-book"></i> Company Policy</a>
             <a href="login.html" class="nav-link text-danger mt-4"><i class="fas fa-sign-out-alt"></i> Logout</a>
@@ -80,6 +81,38 @@
                             <!-- Populated dynamically -->
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Edit Salary Modal -->
+        <div class="modal fade" id="editSalaryModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg">
+                    <div class="modal-header bg-light border-0">
+                        <h5 class="modal-title fw-bold">Edit Salary</h5>
+                        <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form id="editSalaryForm">
+                        <input type="hidden" id="editSalaryId">
+                        <div class="modal-body p-4">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Amount (₹)</label>
+                                <input type="number" class="form-control" id="editSalaryAmount" min="0" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Status</label>
+                                <select class="form-select" id="editSalaryStatus" required>
+                                    <option value="Pending">Pending</option>
+                                    <option value="Paid">Paid</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer border-0 bg-light">
+                            <button type="button" class="btn btn-secondary px-4 rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary px-4 rounded-pill">Save Changes</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>

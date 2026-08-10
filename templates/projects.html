@@ -26,6 +26,7 @@
             <div class="collapse " id="financeSubmenu">
                 <a href="salary.html" class="nav-link " style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-money-bill-wave"></i> Salary</a>
                 <a href="expenses.html" class="nav-link " style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-file-invoice-dollar"></i> Expenses</a>
+                <a href="incomes.html" class="nav-link " style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-coins"></i> Income</a>
             </div>
                         <a href="policy.html" class="nav-link"><i class="fas fa-book"></i> Company Policy</a>
             <a href="login.html" class="nav-link text-danger mt-4"><i class="fas fa-sign-out-alt"></i> Logout</a>
@@ -137,6 +138,41 @@
                     <button type="submit" class="btn btn-primary">Save Project</button>
                 </div>
             </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Project Details Modal -->
+    <div class="modal fade" id="projectDetailsModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card border-0">
+          <div class="modal-header border-bottom border-secondary border-opacity-25">
+            <h5 class="modal-title fw-bold" id="detailProjectName">Project Name</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body p-4">
+            <div class="mb-3">
+                <p class="text-muted mb-1 text-uppercase text-xs fw-bold tracking-wider">Client</p>
+                <p class="fw-semibold fs-5 mb-0" id="detailProjectClient">--</p>
+            </div>
+            <div class="mb-3">
+                <p class="text-muted mb-1 text-uppercase text-xs fw-bold tracking-wider">Team Members</p>
+                <div class="d-flex flex-wrap gap-2 mt-2" id="detailProjectTeam">
+                    <!-- Team badges -->
+                </div>
+            </div>
+            <div class="mb-3">
+                <p class="text-muted mb-1 text-uppercase text-xs fw-bold tracking-wider">Deadline</p>
+                <p class="fw-semibold mb-0" id="detailProjectDeadline">--</p>
+            </div>
+            <div>
+                <p class="text-muted mb-1 text-uppercase text-xs fw-bold tracking-wider">Status</p>
+                <span class="badge" id="detailProjectStatus">--</span>
+            </div>
+          </div>
+          <div class="modal-footer border-top-0">
+            <button type="button" class="btn btn-light w-100" data-bs-dismiss="modal">Close</button>
           </div>
         </div>
       </div>

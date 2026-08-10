@@ -244,6 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td>
                             ${!isPaid ? `<button class="btn btn-sm btn-success text-white me-1 mark-paid-btn" data-id="${sal.id}"><i class="fas fa-check"></i> Mark Paid</button>` : ''}
                             <button class="btn btn-sm btn-light text-primary"><i class="fas fa-eye"></i> View</button>
+                            <button class="btn btn-sm btn-light text-primary edit-salary-btn ms-1" data-id="${sal.id}" data-amount="${amount}" data-status="${sal.status}"><i class="fas fa-edit"></i> Edit</button>
                         </td>
                     `;
                     salaryTableBody.appendChild(tr);
@@ -272,12 +273,60 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 });
                 
+                // Attach event listeners for edit buttons
+                document.querySelectorAll('.edit-salary-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const salaryId = e.currentTarget.getAttribute('data-id');
+                        const amount = e.currentTarget.getAttribute('data-amount');
+                        const status = e.currentTarget.getAttribute('data-status');
+                        
+                        document.getElementById('editSalaryId').value = salaryId;
+                        document.getElementById('editSalaryAmount').value = amount;
+                        document.getElementById('editSalaryStatus').value = status;
+                        
+                        const modal = new bootstrap.Modal(document.getElementById('editSalaryModal'));
+                        modal.show();
+                    });
+                });
+                
             } catch (err) {
                 console.error("Error fetching salaries", err);
             }
         }
         
         loadSalaries();
+        
+        const editSalaryForm = document.getElementById('editSalaryForm');
+        if (editSalaryForm) {
+            editSalaryForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const salaryId = document.getElementById('editSalaryId').value;
+                const updateData = {
+                    amount: parseFloat(document.getElementById('editSalaryAmount').value),
+                    status: document.getElementById('editSalaryStatus').value
+                };
+                
+                try {
+                    const response = await fetch(`/api/salary/${salaryId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updateData)
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        const modalEl = document.getElementById('editSalaryModal');
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        modal.hide();
+                        loadSalaries();
+                    } else {
+                        alert("Error updating salary: " + (data.message || ''));
+                    }
+                } catch (err) {
+                    alert("Error saving salary");
+                }
+            });
+        }
     }
 
     // Today's Work Form
@@ -695,11 +744,27 @@ document.addEventListener('DOMContentLoaded', () => {
                             <td class="fw-semibold">${exp.name || 'Expense'}</td>
                             <td>₹${amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td>${exp.date || '--'}</td>
+                            <td>
+                                <button class="btn btn-sm btn-light text-primary edit-expense-btn" data-id="${exp.id}" data-name="${exp.name || ''}" data-amount="${exp.amount || ''}" data-date="${exp.date || ''}"><i class="fas fa-edit"></i> Edit</button>
+                            </td>
                         `;
                         expenseTableBody.appendChild(tr);
                     });
                     
                     if (document.getElementById('statExpenseTotal')) document.getElementById('statExpenseTotal').innerText = `₹${totalExpenses.toLocaleString()}`;
+                    
+                    // Attach edit listeners
+                    document.querySelectorAll('.edit-expense-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            document.getElementById('editExpId').value = e.currentTarget.getAttribute('data-id');
+                            document.getElementById('editExpName').value = e.currentTarget.getAttribute('data-name');
+                            document.getElementById('editExpAmount').value = e.currentTarget.getAttribute('data-amount');
+                            document.getElementById('editExpDate').value = e.currentTarget.getAttribute('data-date');
+                            
+                            const modal = new bootstrap.Modal(document.getElementById('editExpenseModal'));
+                            modal.show();
+                        });
+                    });
                 }
                 
             } catch (err) {
@@ -739,6 +804,160 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 } catch (err) {
                     alert("Error saving expense");
+                }
+            });
+        }
+        
+        const editExpenseForm = document.getElementById('editExpenseForm');
+        if (editExpenseForm) {
+            editExpenseForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const expId = document.getElementById('editExpId').value;
+                const updateData = {
+                    name: document.getElementById('editExpName').value,
+                    amount: document.getElementById('editExpAmount').value,
+                    date: document.getElementById('editExpDate').value
+                };
+                
+                try {
+                    const response = await fetch(`/api/expenses/${expId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updateData)
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        const modalEl = document.getElementById('editExpenseModal');
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        modal.hide();
+                        loadExpenses();
+                    } else {
+                        alert("Error updating expense");
+                    }
+                } catch (err) {
+                    alert("Error saving expense");
+                }
+            });
+        }
+    }
+    
+    // Incomes Management Logic
+    const incomeTableBody = document.getElementById('incomeTableBody');
+    if (incomeTableBody) {
+        async function loadIncomes() {
+            try {
+                const response = await fetch('/api/incomes');
+                const records = await response.json();
+                
+                incomeTableBody.innerHTML = '';
+                let totalIncomes = 0;
+                
+                if (records.length === 0) {
+                    incomeTableBody.innerHTML = '<tr><td colspan="3" class="text-center py-4">No incomes found.</td></tr>';
+                } else {
+                    records.forEach(inc => {
+                        const amount = parseFloat(inc.amount) || 0;
+                        totalIncomes += amount;
+                        
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td class="fw-semibold">${inc.name || 'Income'}</td>
+                            <td>₹${amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td>${inc.date || '--'}</td>
+                            <td>
+                                <button class="btn btn-sm btn-light text-primary edit-income-btn" data-id="${inc.id}" data-name="${inc.name || ''}" data-amount="${inc.amount || ''}" data-date="${inc.date || ''}"><i class="fas fa-edit"></i> Edit</button>
+                            </td>
+                        `;
+                        incomeTableBody.appendChild(tr);
+                    });
+                    
+                    if (document.getElementById('statIncomeTotal')) document.getElementById('statIncomeTotal').innerText = `₹${totalIncomes.toLocaleString()}`;
+                    
+                    // Attach edit listeners
+                    document.querySelectorAll('.edit-income-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            document.getElementById('editIncId').value = e.currentTarget.getAttribute('data-id');
+                            document.getElementById('editIncName').value = e.currentTarget.getAttribute('data-name');
+                            document.getElementById('editIncAmount').value = e.currentTarget.getAttribute('data-amount');
+                            document.getElementById('editIncDate').value = e.currentTarget.getAttribute('data-date');
+                            
+                            const modal = new bootstrap.Modal(document.getElementById('editIncomeModal'));
+                            modal.show();
+                        });
+                    });
+                }
+                
+            } catch (err) {
+                console.error("Error fetching incomes", err);
+            }
+        }
+        
+        loadIncomes();
+        
+        const addIncomeForm = document.getElementById('addIncomeForm');
+        if (addIncomeForm) {
+            addIncomeForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const newInc = {
+                    name: document.getElementById('incName').value,
+                    amount: document.getElementById('incAmount').value,
+                    date: document.getElementById('incDate').value
+                };
+                
+                try {
+                    const response = await fetch('/api/incomes', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(newInc)
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        const modalEl = document.getElementById('addIncomeModal');
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        modal.hide();
+                        
+                        addIncomeForm.reset();
+                        loadIncomes();
+                    } else {
+                        alert("Error adding income");
+                    }
+                } catch (err) {
+                    alert("Error saving income");
+                }
+            });
+        }
+        
+        const editIncomeForm = document.getElementById('editIncomeForm');
+        if (editIncomeForm) {
+            editIncomeForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const incId = document.getElementById('editIncId').value;
+                const updateData = {
+                    name: document.getElementById('editIncName').value,
+                    amount: document.getElementById('editIncAmount').value,
+                    date: document.getElementById('editIncDate').value
+                };
+                
+                try {
+                    const response = await fetch(`/api/incomes/${incId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updateData)
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        const modalEl = document.getElementById('editIncomeModal');
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        modal.hide();
+                        loadIncomes();
+                    } else {
+                        alert("Error updating income");
+                    }
+                } catch (err) {
+                    alert("Error saving income");
                 }
             });
         }
@@ -812,10 +1031,13 @@ document.addEventListener('DOMContentLoaded', () => {
         loadClientsForDropdown();
         loadEmployeesForDropdown();
 
+        let allProjectsData = [];
+        
         async function loadProjects() {
             try {
                 const response = await fetch('/api/projects');
                 const records = await response.json();
+                allProjectsData = records;
                 
                 projectTableBody.innerHTML = '';
                 if (records.length === 0) {
@@ -853,7 +1075,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td><span class="fw-semibold">${proj.name || 'Project'}</span></td>
+                        <td><a href="#" class="text-decoration-none view-project-details text-primary fw-semibold" data-id="${proj.id}">${proj.name || 'Project'}</a></td>
                         <td>${proj.client || '--'}</td>
                         <td>${teamHtml}</td>
                         <td>${proj.deadline || '--'}</td>
@@ -873,6 +1095,43 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (err) {
                 console.error("Error fetching projects", err);
             }
+            
+            document.querySelectorAll('.view-project-details').forEach(el => {
+                el.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const projectId = parseInt(this.getAttribute('data-id'));
+                    const proj = allProjectsData.find(p => p.id === projectId);
+                    if (proj) {
+                        document.getElementById('detailProjectName').innerText = proj.name || 'Project';
+                        document.getElementById('detailProjectClient').innerText = proj.client || '--';
+                        document.getElementById('detailProjectDeadline').innerText = proj.deadline || '--';
+                        
+                        let badgeClass = 'bg-primary';
+                        if (proj.status === 'Completed') badgeClass = 'bg-info text-dark';
+                        else if (proj.status === 'Pending') badgeClass = 'bg-warning text-dark';
+                        else if (proj.status === 'Testing') badgeClass = 'bg-secondary';
+                        
+                        const statusEl = document.getElementById('detailProjectStatus');
+                        statusEl.innerText = proj.status || 'Unknown';
+                        statusEl.className = 'badge ' + badgeClass;
+                        
+                        const teamStr = proj.team || '';
+                        const initials = teamStr.split(',').map(s => s.trim()).filter(s => s);
+                        let teamHtml = '';
+                        if (initials.length === 0) {
+                            teamHtml = '<span class="text-muted">No team assigned</span>';
+                        } else {
+                            initials.forEach(initial => {
+                                teamHtml += `<span class="badge bg-secondary text-white"><i class="fas fa-user-circle me-1"></i>${initial}</span>`;
+                            });
+                        }
+                        document.getElementById('detailProjectTeam').innerHTML = teamHtml;
+                        
+                        const modal = new bootstrap.Modal(document.getElementById('projectDetailsModal'));
+                        modal.show();
+                    }
+                });
+            });
         }
         
         loadProjects();

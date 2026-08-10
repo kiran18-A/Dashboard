@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expenses - Admin Dashboard</title>
+    <title>incomes - Admin Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/static/assets/css/style.css?v={{ range(1, 100000) | random }}">
@@ -24,8 +24,8 @@
 <a href="#financeSubmenu" data-bs-toggle="collapse" class="nav-link d-flex align-items-center"><i class="fas fa-wallet"></i> Finance <i class="fas fa-chevron-down ms-auto" style="font-size:0.8em"></i></a>
             <div class="collapse show" id="financeSubmenu">
                 <a href="salary.html" class="nav-link " style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-money-bill-wave"></i> Salary</a>
-                <a href="expenses.html" class="nav-link active" style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-file-invoice-dollar"></i> Expenses</a>
-                <a href="incomes.html" class="nav-link " style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-coins"></i> Income</a>
+                <a href="expenses.html" class="nav-link " style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-file-invoice-dollar"></i> Expenses</a>
+                <a href="incomes.html" class="nav-link active" style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-coins"></i> Income</a>
             </div>
                         <a href="policy.html" class="nav-link"><i class="fas fa-book"></i> Company Policy</a>
             <a href="login.html" class="nav-link text-danger mt-4"><i class="fas fa-sign-out-alt"></i> Logout</a>
@@ -57,12 +57,12 @@
 
         <div class="container-fluid p-4">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4 class="fw-bold mb-0">Expenses</h4>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addExpenseModal"><i class="fas fa-plus me-2"></i>Add Expense</button>
+                <h4 class="fw-bold mb-0">incomes</h4>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addIncomeModal"><i class="fas fa-plus me-2"></i>Add income</button>
             </div>
             
             <div class="row g-4 mb-4">
-                <div class="col-12"><div class="glass-card p-4 text-center border-start border-4 border-primary"><h3 class="fw-bold text-primary mb-1" id="statExpenseTotal">₹0</h3><p class="text-muted mb-0 fw-semibold">Total Expenses</p></div></div>
+                <div class="col-12"><div class="glass-card p-4 text-center border-start border-4 border-primary"><h3 class="fw-bold text-primary mb-1" id="statIncomeTotal">₹0</h3><p class="text-muted mb-0 fw-semibold">Total incomes</p></div></div>
             </div>
 
             <div class="glass-card p-4">
@@ -70,13 +70,13 @@
                     <table class="table table-hover align-middle">
                         <thead>
                             <tr>
-                                <th>Expense Name</th>
+                                <th>income Name</th>
                                 <th>Amount</th>
                                 <th>Date</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
-                        <tbody id="expenseTableBody">
+                        <tbody id="incomeTableBody">
                             <!-- Populated dynamically -->
                         </tbody>
                     </table>
@@ -85,31 +85,31 @@
         </div>
     </main>
 
-    <!-- Add Expense Modal -->
-    <div class="modal fade" id="addExpenseModal" tabindex="-1" aria-hidden="true">
+    <!-- Add income Modal -->
+    <div class="modal fade" id="addIncomeModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content glass-card border-0">
           <div class="modal-header border-bottom border-secondary">
-            <h5 class="modal-title fw-bold">Add New Expense</h5>
+            <h5 class="modal-title fw-bold">Add New income</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <form id="addExpenseForm">
+            <form id="addIncomeForm">
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">Expense Name</label>
-                    <input type="text" class="form-control" id="expName" required>
+                    <label class="form-label fw-semibold">income Name</label>
+                    <input type="text" class="form-control" id="incName" required>
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Amount (₹)</label>
-                    <input type="number" class="form-control" id="expAmount" min="0" step="0.01" required>
+                    <input type="number" class="form-control" id="incAmount" min="0" step="0.01" required>
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Date</label>
-                    <input type="date" class="form-control" id="expDate" required>
+                    <input type="date" class="form-control" id="incDate" required>
                 </div>
-                <div class="modal-footer border-top border-secondary">
+                <div class="modal-footer border-top border-secondary mt-4">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="submit" class="btn btn-primary">Save income</button>
                 </div>
             </form>
           </div>
@@ -117,30 +117,30 @@
       </div>
     </div>
 
-    <!-- Edit Expense Modal -->
-    <div class="modal fade" id="editExpenseModal" tabindex="-1" aria-hidden="true">
+    <!-- Edit Income Modal -->
+    <div class="modal fade" id="editIncomeModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content glass-card border-0">
           <div class="modal-header border-bottom border-secondary">
-            <h5 class="modal-title fw-bold">Edit Expense</h5>
+            <h5 class="modal-title fw-bold">Edit Income</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <form id="editExpenseForm">
-                <input type="hidden" id="editExpId">
+            <form id="editIncomeForm">
+                <input type="hidden" id="editIncId">
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">Expense Name</label>
-                    <input type="text" class="form-control" id="editExpName" required>
+                    <label class="form-label fw-semibold">Income Name</label>
+                    <input type="text" class="form-control" id="editIncName" required>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">Amount</label>
-                    <input type="number" class="form-control" id="editExpAmount" min="0" step="0.01" required>
+                    <label class="form-label fw-semibold">Amount (₹)</label>
+                    <input type="number" class="form-control" id="editIncAmount" min="0" step="0.01" required>
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Date</label>
-                    <input type="date" class="form-control" id="editExpDate" required>
+                    <input type="date" class="form-control" id="editIncDate" required>
                 </div>
-                <div class="modal-footer border-top border-secondary">
+                <div class="modal-footer border-top border-secondary mt-4">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Changes</button>
                 </div>

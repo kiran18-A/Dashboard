@@ -27,6 +27,7 @@
             <div class="collapse " id="financeSubmenu">
                 <a href="salary.html" class="nav-link " style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-money-bill-wave"></i> Salary</a>
                 <a href="expenses.html" class="nav-link " style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-file-invoice-dollar"></i> Expenses</a>
+                <a href="incomes.html" class="nav-link " style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-coins"></i> Income</a>
             </div>
                         <a href="policy.html" class="nav-link"><i class="fas fa-book"></i> Company Policy</a>
             <a href="login.html" class="nav-link text-danger mt-4"><i class="fas fa-sign-out-alt"></i> Logout</a>
@@ -69,11 +70,11 @@
                     <div class="glass-card p-4">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <p class="text-muted mb-1 fw-semibold">Total Employees</p>
-                                <h3 class="fw-bold mb-0" id="statTotalEmployees">0</h3>
+                                <p class="text-muted mb-1 fw-semibold">Total Expenses</p>
+                                <h3 class="fw-bold mb-0" id="statTotalExpenses">₹0</h3>
                             </div>
                             <div class="bg-gradient-primary rounded-circle p-3 shadow text-white">
-                                <i class="fas fa-users fa-lg"></i>
+                                <i class="fas fa-wallet fa-lg"></i>
                             </div>
                         </div>
                     </div>
@@ -82,11 +83,11 @@
                     <div class="glass-card p-4">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <p class="text-muted mb-1 fw-semibold">Present Today</p>
-                                <h3 class="fw-bold mb-0" id="statPresentToday">0</h3>
+                                <p class="text-muted mb-1 fw-semibold">Total Income</p>
+                                <h3 class="fw-bold mb-0" id="statTotalIncome">₹0</h3>
                             </div>
                             <div class="bg-gradient-success rounded-circle p-3 shadow text-white">
-                                <i class="fas fa-user-check fa-lg"></i>
+                                <i class="fas fa-coins fa-lg"></i>
                             </div>
                         </div>
                     </div>
@@ -148,13 +149,21 @@
                     </div>
                 </div>
             </div>
-            <!-- Project Chart -->
+            <!-- Charts Row -->
             <div class="row mb-4">
-                <div class="col-12 col-lg-8 mx-auto">
-                    <div class="glass-card p-4">
+                <div class="col-12 col-lg-6 mb-4 mb-lg-0">
+                    <div class="glass-card p-4 h-100">
                         <h5 class="fw-bold mb-4 text-center">Projects Overview</h5>
-                        <div style="height: 350px; display: flex; justify-content: center;">
+                        <div style="height: 300px; display: flex; justify-content: center;">
                             <canvas id="projectChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-6">
+                    <div class="glass-card p-4 h-100">
+                        <h5 class="fw-bold mb-4 text-center">Financial Overview</h5>
+                        <div style="height: 300px; display: flex; justify-content: center;">
+                            <canvas id="financeChart"></canvas>
                         </div>
                     </div>
                 </div>
