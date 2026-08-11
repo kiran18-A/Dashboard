@@ -10,6 +10,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
+
+@app.after_request
+def add_api_headers(response):
+    if request.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '-1'
+    return response
 app.config['SECRET_KEY'] = 'super-secret-key-for-dashboard'
 
 # Mail Configuration
@@ -72,7 +80,7 @@ def init_excel():
         ]),
         'attendance': pd.DataFrame(columns=['id', 'user_id', 'emp_id', 'date', 'check_in', 'check_out', 'status']),
         'daily_work': pd.DataFrame(columns=['id', 'emp_id', 'date', 'time', 'description', 'hours', 'status']),
-        'projects': pd.DataFrame(columns=['id', 'name', 'client', 'team', 'status', 'deadline']),
+        'projects': pd.DataFrame(columns=['id', 'name', 'client', 'team', 'status', 'deadline', 'costing', 'start_date']),
         'clients': pd.DataFrame(columns=['id', 'name', 'company', 'email']),
         'salary': pd.DataFrame(columns=['id', 'employee_id', 'amount', 'month', 'status', 'paid_date']),
         'expenses': pd.DataFrame(columns=['id', 'name', 'category', 'amount', 'date', 'status']),
@@ -85,6 +93,7 @@ def init_excel():
         path = get_db_path(name)
         if not os.path.exists(path):
             df.to_excel(path, index=False, engine='openpyxl')
+            if path in _df_cache: del _df_cache[path]
 
 @app.before_request
 def setup():
@@ -249,6 +258,7 @@ def api_checkin():
     
     att_df = pd.concat([att_df, pd.DataFrame([new_row])], ignore_index=True)
     att_df.to_excel(get_db_path('attendance'), index=False, engine='openpyxl')
+    if get_db_path('attendance') in _df_cache: del _df_cache[get_db_path('attendance')]
         
     return jsonify({'success': True, 'time': datetime.now().strftime("%I:%M %p")})
 
@@ -267,6 +277,7 @@ def api_checkout():
         if mask.any():
             att_df.loc[mask, 'check_out'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             att_df.to_excel(get_db_path('attendance'), index=False, engine='openpyxl')
+            if get_db_path('attendance') in _df_cache: del _df_cache[get_db_path('attendance')]
             return jsonify({'success': True, 'time': datetime.now().strftime("%I:%M %p")})
             
     return jsonify({'success': False, 'message': 'No check-in record found for today'})
@@ -297,6 +308,7 @@ def change_password():
     # Update password
     users_df.loc[mask, 'password'] = new_pw
     users_df.to_excel(get_db_path('users'), index=False, engine='openpyxl')
+    if get_db_path('users') in _df_cache: del _df_cache[get_db_path('users')]
     
     return jsonify({'success': True, 'message': 'Password updated successfully'})
 
@@ -475,11 +487,49 @@ def add_client():
         }])
         
         df = pd.concat([df, new_row], ignore_index=True)
+
         df.to_excel(get_db_path('clients'), index=False, engine='openpyxl')
+        if get_db_path('clients') in _df_cache: del _df_cache[get_db_path('clients')]
         
         return jsonify({'success': True, 'client': new_row.to_dict('records')[0]})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/edit_client/<int:client_id>', methods=['PUT'])
+def edit_client(client_id):
+    data = request.json
+    try:
+        path = get_db_path('clients')
+        df = pd.read_excel(path)
+        if client_id not in df['id'].values:
+            return jsonify({'success': False, 'message': 'Client not found'}), 404
+            
+        idx = df.index[df['id'] == client_id].tolist()[0]
+        if 'name' in data: df.at[idx, 'name'] = data['name']
+        if 'company' in data: df.at[idx, 'company'] = data['company']
+        if 'phone' in data: df.at[idx, 'phone'] = data['phone']
+        if 'email' in data: df.at[idx, 'email'] = data['email']
+        
+        df.to_excel(path, index=False, engine='openpyxl')
+        if path in _df_cache: del _df_cache[path]
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/delete_client/<int:client_id>', methods=['DELETE'])
+def delete_client(client_id):
+    try:
+        path = get_db_path('clients')
+        df = pd.read_excel(path)
+        if client_id not in df['id'].values:
+            return jsonify({'success': False, 'message': 'Client not found'}), 404
+            
+        df = df[df['id'] != client_id]
+        df.to_excel(path, index=False, engine='openpyxl')
+        if path in _df_cache: del _df_cache[path]
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/salary', methods=['GET'])
 def get_salary():
@@ -543,6 +593,7 @@ def get_salary():
             else:
                 sal_df = pd.concat([sal_df, new_df], ignore_index=True)
             sal_df.to_excel(get_db_path('salary'), index=False, engine='openpyxl')
+            if get_db_path('salary') in _df_cache: del _df_cache[get_db_path('salary')]
             
     # Sync "Pending" salaries with live employee data
     if not sal_df.empty and not emp_df.empty:
@@ -564,6 +615,7 @@ def get_salary():
                     
         if updated:
             sal_df.to_excel(get_db_path('salary'), index=False, engine='openpyxl')
+            if get_db_path('salary') in _df_cache: del _df_cache[get_db_path('salary')]
             
     # Merge with employees to get names
     if not sal_df.empty and not emp_df.empty:
@@ -588,6 +640,7 @@ def pay_salary(salary_id):
             sal_df.loc[mask, 'status'] = 'Paid'
             sal_df.loc[mask, 'paid_date'] = datetime.now().strftime('%b %d, %Y')
             sal_df.to_excel(get_db_path('salary'), index=False, engine='openpyxl')
+            if get_db_path('salary') in _df_cache: del _df_cache[get_db_path('salary')]
             return jsonify({'success': True})
             
     return jsonify({'success': False, 'message': 'Salary record not found'}), 404
@@ -625,6 +678,7 @@ def update_salary(salary_id):
                     sal_df.loc[mask, 'paid_date'] = ''
                     
             sal_df.to_excel(get_db_path('salary'), index=False, engine='openpyxl')
+            if get_db_path('salary') in _df_cache: del _df_cache[get_db_path('salary')]
             return jsonify({'success': True})
             
     return jsonify({'success': False, 'message': 'Salary record not found'}), 404
@@ -674,11 +728,12 @@ def save_daily_work():
             'project': data.get('project', ''),
             'description': data.get('description', ''),
             'hours': '',
-            'status': data.get('status') or 'Pending Review'
+            'status': data.get('status') or 'To Do'
         }])
         
         df = pd.concat([df, new_row], ignore_index=True)
         df.to_excel(get_db_path('daily_work'), index=False, engine='openpyxl')
+        if get_db_path('daily_work') in _df_cache: del _df_cache[get_db_path('daily_work')]
         
         return jsonify({'success': True})
 
@@ -742,10 +797,11 @@ def edit_my_work():
                 return jsonify({'error': 'Unauthorized to edit this record'}), 403
                 
             df.at[row_idx, 'description'] = new_desc
-            df.at[row_idx, 'status'] = 'Pending Review'
+            df.at[row_idx, 'status'] = 'To Do'
             df.at[row_idx, 'admin_review'] = ''
             
             df.to_excel(get_db_path('daily_work'), index=False, engine='openpyxl')
+            if get_db_path('daily_work') in _df_cache: del _df_cache[get_db_path('daily_work')]
             return jsonify({'success': True})
             
     return jsonify({'error': 'Record not found'}), 404
@@ -780,6 +836,7 @@ def update_employee_status():
                     df.at[row_idx, 'current_project'] = new_project
                 
                 df.to_excel(path, index=False, engine='openpyxl')
+                if path in _df_cache: del _df_cache[path]
                 return jsonify({'success': True})
             return jsonify({'error': 'Employee not found'}), 404
     return jsonify({'error': 'Database not found'}), 500
@@ -845,6 +902,7 @@ def update_profile():
                     udf.at[row_idx, 'emergency_number'] = str(data['emergency_number'])
                     
                 udf.to_excel(users_path, index=False, engine='openpyxl')
+                if users_path in _df_cache: del _df_cache[users_path]
                 success = True
 
     # Update in employees.xlsx if applicable
@@ -872,6 +930,7 @@ def update_profile():
                     df.at[row_idx, 'emergency_number'] = str(data['emergency_number'])
                 
                 df.to_excel(path, index=False, engine='openpyxl')
+                if path in _df_cache: del _df_cache[path]
                 success = True
 
     if success:
@@ -968,6 +1027,7 @@ def add_employee():
         
         df = pd.concat([df, new_row], ignore_index=True)
         df.to_excel(get_db_path('employees'), index=False, engine='openpyxl')
+        if get_db_path('employees') in _df_cache: del _df_cache[get_db_path('employees')]
         
         if data.get('username') and data.get('password'):
             users_df = read_excel_cached(get_db_path('users'))
@@ -982,6 +1042,7 @@ def add_employee():
             }])
             users_df = pd.concat([users_df, new_user], ignore_index=True)
             users_df.to_excel(get_db_path('users'), index=False, engine='openpyxl')
+            if get_db_path('users') in _df_cache: del _df_cache[get_db_path('users')]
             
         return jsonify({'success': True})
     except Exception as e:
@@ -996,6 +1057,7 @@ def delete_employee(emp_id):
         df = read_excel_cached(path)
         df = df[df['id'] != emp_id]
         df.to_excel(path, index=False, engine='openpyxl')
+        if path in _df_cache: del _df_cache[path]
         return jsonify({'success': True})
     return jsonify({'error': 'Failed'}), 500
 
@@ -1014,6 +1076,7 @@ def update_employee(emp_id):
                 if key in data:
                     df.at[row_idx, key] = data[key]
             df.to_excel(path, index=False, engine='openpyxl')
+            if path in _df_cache: del _df_cache[path]
             return jsonify({'success': True})
     return jsonify({'error': 'Failed'}), 500
 
@@ -1109,6 +1172,7 @@ def add_expense():
         
         df = pd.concat([df, new_row], ignore_index=True)
         df.to_excel(get_db_path('expenses'), index=False, engine='openpyxl')
+        if get_db_path('expenses') in _df_cache: del _df_cache[get_db_path('expenses')]
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1132,6 +1196,7 @@ def update_expense(expense_id):
                     df['date'] = df['date'].astype(str)
                     df.loc[mask, 'date'] = str(data['date'])
                 df.to_excel(get_db_path('expenses'), index=False, engine='openpyxl')
+                if get_db_path('expenses') in _df_cache: del _df_cache[get_db_path('expenses')]
                 return jsonify({'success': True})
         return jsonify({'success': False, 'message': 'Expense not found'}), 404
     except Exception as e:
@@ -1168,6 +1233,7 @@ def add_income():
         
         df = pd.concat([df, new_row], ignore_index=True)
         df.to_excel(get_db_path('incomes'), index=False, engine='openpyxl')
+        if get_db_path('incomes') in _df_cache: del _df_cache[get_db_path('incomes')]
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1191,6 +1257,7 @@ def update_income(income_id):
                     df['date'] = df['date'].astype(str)
                     df.loc[mask, 'date'] = str(data['date'])
                 df.to_excel(get_db_path('incomes'), index=False, engine='openpyxl')
+                if get_db_path('incomes') in _df_cache: del _df_cache[get_db_path('incomes')]
                 return jsonify({'success': True})
         return jsonify({'success': False, 'message': 'Income not found'}), 404
     except Exception as e:
@@ -1230,14 +1297,65 @@ def add_project():
             'client': data.get('client', ''),
             'team': team_val,
             'status': data.get('status', 'Running'),
-            'deadline': data.get('deadline', '')
+            'start_date': data.get('start_date', ''),
+            'deadline': data.get('deadline', ''),
+            'costing': data.get('costing', '')
         }])
         
         df = pd.concat([df, new_row], ignore_index=True)
         df.to_excel(get_db_path('projects'), index=False, engine='openpyxl')
+        if get_db_path('projects') in _df_cache: del _df_cache[get_db_path('projects')]
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/edit_project/<int:project_id>', methods=['PUT'])
+def edit_project(project_id):
+    if 'user_id' not in session or session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 401
+    data = request.json
+    try:
+        path = get_db_path('projects')
+        df = pd.read_excel(path)
+        if project_id not in df['id'].values:
+            return jsonify({'success': False, 'message': 'Project not found'}), 404
+            
+        idx = df.index[df['id'] == project_id].tolist()[0]
+        if 'name' in data: df.at[idx, 'name'] = data['name']
+        if 'client' in data: df.at[idx, 'client'] = data['client']
+        if 'team' in data:
+            team_val = data['team']
+            if isinstance(team_val, list):
+                team_val = ', '.join(team_val)
+            df.at[idx, 'team'] = team_val
+        if 'status' in data: df.at[idx, 'status'] = data['status']
+        if 'start_date' in data: df.at[idx, 'start_date'] = data['start_date']
+        if 'deadline' in data: df.at[idx, 'deadline'] = data['deadline']
+        if 'costing' in data: df.at[idx, 'costing'] = data['costing']
+        
+        df.to_excel(path, index=False, engine='openpyxl')
+        if path in _df_cache: del _df_cache[path]
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/delete_project/<int:project_id>', methods=['DELETE'])
+def delete_project(project_id):
+    if 'user_id' not in session or session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 401
+    try:
+        path = get_db_path('projects')
+        df = pd.read_excel(path)
+        if project_id not in df['id'].values:
+            return jsonify({'success': False, 'message': 'Project not found'}), 404
+            
+        df = df[df['id'] != project_id]
+        df.to_excel(path, index=False, engine='openpyxl')
+        if path in _df_cache: del _df_cache[path]
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 
 @app.route('/api/daily_work', methods=['GET'])
 def get_daily_work():
@@ -1247,10 +1365,10 @@ def get_daily_work():
     if os.path.exists(path):
         df = read_excel_cached(path).fillna('')
         
-        # Add employee name based on user_id/emp_id
-        users_df = read_excel_cached(get_db_path('users')).fillna('')
-        if not users_df.empty and 'id' in users_df.columns and 'name' in users_df.columns:
-            id_to_name = dict(zip(users_df['id'].astype(str), users_df['name']))
+        # Add employee name based on emp_id
+        emp_df = read_excel_cached(get_db_path('employees')).fillna('')
+        if not emp_df.empty and 'employee_id' in emp_df.columns and 'name' in emp_df.columns:
+            id_to_name = dict(zip(emp_df['employee_id'].astype(str), emp_df['name']))
             df['name'] = df['emp_id'].astype(str).map(id_to_name).fillna(df['emp_id'])
             
         return jsonify(df.to_dict('records'))
@@ -1297,6 +1415,7 @@ def apply_leave():
         
         df = pd.concat([df, new_row], ignore_index=True)
         df.to_excel(get_db_path('leaves'), index=False, engine='openpyxl')
+        if get_db_path('leaves') in _df_cache: del _df_cache[get_db_path('leaves')]
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1320,6 +1439,7 @@ def update_status():
         if idx:
             df.at[idx[0], 'status'] = status
             df.to_excel(get_db_path(table_type), index=False, engine='openpyxl')
+            if get_db_path(table_type) in _df_cache: del _df_cache[get_db_path(table_type)]
             return jsonify({'success': True})
     except Exception as e:
         pass
@@ -1343,6 +1463,7 @@ def review_work():
         if idx:
             df.at[idx[0], 'admin_review'] = review_text
             df.to_excel(get_db_path('daily_work'), index=False, engine='openpyxl')
+            if get_db_path('daily_work') in _df_cache: del _df_cache[get_db_path('daily_work')]
             return jsonify({'success': True})
     except Exception as e:
         print(f"Error in review_work: {e}")
@@ -1383,6 +1504,7 @@ def api_upload_profile_photo():
             if idx:
                 df.at[idx[0], 'profile_photo'] = filename
                 df.to_excel(db_path, index=False, engine='openpyxl')
+                if db_path in _df_cache: del _df_cache[db_path]
                 return jsonify({'success': True, 'photo_url': f"/static/uploads/profiles/{filename}"})
                 
     return jsonify({'success': False, 'message': 'Upload failed'}), 500
@@ -1400,6 +1522,7 @@ def api_remove_profile_photo():
         if idx:
             df.at[idx[0], 'profile_photo'] = ''
             df.to_excel(db_path, index=False, engine='openpyxl')
+            if db_path in _df_cache: del _df_cache[db_path]
             return jsonify({'success': True, 'message': 'Photo removed'})
             
     return jsonify({'success': False, 'message': 'Failed to remove photo'}), 500
@@ -1441,6 +1564,7 @@ def api_upload_document():
         
         df = pd.concat([df, new_doc], ignore_index=True)
         df.to_excel(db_path, index=False, engine='openpyxl')
+        if db_path in _df_cache: del _df_cache[db_path]
         
         return jsonify({'success': True, 'message': 'Document uploaded successfully'})
     return jsonify({'success': False, 'message': 'Upload failed'})
@@ -1474,6 +1598,7 @@ def forgot_password():
         users_df['email'] = ''
         users_df.loc[users_df['username'] == 'admin', 'email'] = 'admin@itcorp.com'
         users_df.to_excel(get_db_path('users'), index=False, engine='openpyxl')
+        if get_db_path('users') in _df_cache: del _df_cache[get_db_path('users')]
         
     # Find user by username or email (case insensitive)
     user = users_df[(users_df['username'].str.lower() == email_or_username.lower()) | (users_df['email'].str.lower() == email_or_username.lower())]
@@ -1509,6 +1634,52 @@ Please keep this secure.
         traceback.print_exc()
         print(f"Error sending email: {str(e)}")
         return jsonify({'success': False, 'message': f'Error sending email: {str(e)}'}), 500
+
+
+
+
+@app.route('/api/edit_daily_work', methods=['POST'])
+def edit_daily_work():
+    data = request.json
+    work_id = data.get('id')
+    if not work_id:
+        return jsonify({'error': 'ID required'}), 400
+    
+    df = read_excel_cached(get_db_path('daily_work'))
+    if df.empty:
+        return jsonify({'error': 'No data found'}), 404
+        
+    idx = df.index[df['id'] == int(work_id)].tolist()
+    if not idx:
+        return jsonify({'error': 'Record not found'}), 404
+        
+    row_idx = idx[0]
+    df.at[row_idx, 'emp_id'] = data.get('emp_id', df.at[row_idx, 'emp_id'])
+    df.at[row_idx, 'date'] = data.get('date', df.at[row_idx, 'date'])
+    df.at[row_idx, 'project'] = data.get('project', df.at[row_idx, 'project'])
+    df.at[row_idx, 'time'] = data.get('time', df.at[row_idx, 'time'])
+    df.at[row_idx, 'description'] = data.get('description', df.at[row_idx, 'description'])
+    df.at[row_idx, 'status'] = data.get('status', df.at[row_idx, 'status'])
+    
+    # Save back
+    df.to_excel(get_db_path('daily_work'), index=False, engine='openpyxl')
+            
+    return jsonify({'success': True})
+
+@app.route('/api/delete_work/<int:work_id>', methods=['DELETE'])
+def delete_work(work_id):
+    df = read_excel_cached(get_db_path('daily_work'))
+    if df.empty:
+        return jsonify({'error': 'No data found'}), 404
+        
+    idx = df.index[df['id'] == work_id].tolist()
+    if not idx:
+        return jsonify({'error': 'Record not found'}), 404
+        
+    df = df.drop(idx[0])
+    df.to_excel(get_db_path('daily_work'), index=False, engine='openpyxl')
+            
+    return jsonify({'success': True})
 
 
 if __name__ == '__main__':

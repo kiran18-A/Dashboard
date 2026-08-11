@@ -1107,12 +1107,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 records.forEach(proj => {
                     if (proj.status === 'Running') runningTotal++;
                     else if (proj.status === 'Completed') completedTotal++;
-                    else if (proj.status === 'Pending') pendingTotal++;
+                    else if (proj.status === 'Onboarding') pendingTotal++;
                     else if (proj.status === 'Testing') testingTotal++;
                     
                     let badgeClass = 'bg-primary';
                     if (proj.status === 'Completed') badgeClass = 'bg-info text-dark';
-                    else if (proj.status === 'Pending') badgeClass = 'bg-warning text-dark';
+                    else if (proj.status === 'Onboarding') badgeClass = 'bg-warning text-dark';
                     else if (proj.status === 'Testing') badgeClass = 'bg-secondary';
                     
                     // Parse Team Initials
@@ -1132,8 +1132,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td><a href="#" class="text-decoration-none view-project-details text-primary fw-semibold" data-id="${proj.id}">${proj.name || 'Project'}</a></td>
                         <td>${proj.client || '--'}</td>
                         <td>${teamHtml}</td>
+                        <td>${proj.start_date || '--'}</td>
+                        <td class="fw-semibold text-success">${proj.costing ? '₹' + Number(proj.costing).toLocaleString('en-IN') : '--'}</td>
                         <td>${proj.deadline || '--'}</td>
-                        <td>${generateStatusSelect('projects', proj.id, proj.status, ['Running', 'Completed', 'Pending', 'Testing'], badgeClass)}</td>
+                        <td>${generateStatusSelect('projects', proj.id, proj.status, ['Running', 'Completed', 'Onboarding', 'Testing'], badgeClass)}</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-light btn-action" onclick='openEditProjectModal(${JSON.stringify(proj).replace(/'/g, "\\'")})'>
+                                <i class="fas fa-edit text-primary"></i>
+                            </button>
+                            <button class="btn btn-sm btn-light btn-action text-danger" onclick="deleteProject(${proj.id})">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </td>
                     `;
                     projectTableBody.appendChild(tr);
                 });
@@ -1162,7 +1172,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         let badgeClass = 'bg-primary';
                         if (proj.status === 'Completed') badgeClass = 'bg-info text-dark';
-                        else if (proj.status === 'Pending') badgeClass = 'bg-warning text-dark';
+                        else if (proj.status === 'Onboarding') badgeClass = 'bg-warning text-dark';
                         else if (proj.status === 'Testing') badgeClass = 'bg-secondary';
                         
                         const statusEl = document.getElementById('detailProjectStatus');
@@ -1208,6 +1218,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     name: document.getElementById('projName').value,
                     client: document.getElementById('projClient').value,
                     team: selectedTeam,
+                    start_date: document.getElementById('projStartDate').value,
+                    costing: document.getElementById('projCosting').value,
                     deadline: document.getElementById('projDeadline').value,
                     status: document.getElementById('projStatus').value
                 };
@@ -1236,6 +1248,90 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     }
+
+        window.openEditProjectModal = function(proj) {
+            document.getElementById('editProjId').value = proj.id;
+            document.getElementById('editProjName').value = proj.name;
+            if(document.getElementById('editProjClient').querySelector(`option[value="${proj.client}"]`)) {
+                document.getElementById('editProjClient').value = proj.client;
+            } else if (proj.client) {
+                const opt = document.createElement('option');
+                opt.value = proj.client;
+                opt.text = proj.client;
+                document.getElementById('editProjClient').appendChild(opt);
+                document.getElementById('editProjClient').value = proj.client;
+            }
+            
+            // Clone team checkboxes
+            const addContainer = document.getElementById('projTeamContainer');
+            const editContainer = document.getElementById('editProjTeamContainer');
+            if(addContainer && editContainer) {
+                editContainer.innerHTML = addContainer.innerHTML;
+                const teamArr = (proj.team || '').split(',').map(s=>s.trim());
+                editContainer.querySelectorAll('.team-checkbox').forEach(cb => {
+                    cb.checked = teamArr.includes(cb.value);
+                    cb.className = 'form-check-input edit-team-checkbox';
+                });
+            }
+
+            document.getElementById('editProjStartDate').value = proj.start_date || '';
+            document.getElementById('editProjCosting').value = proj.costing || '';
+            document.getElementById('editProjDeadline').value = proj.deadline || '';
+            document.getElementById('editProjStatus').value = proj.status || 'Running';
+            
+            var modal = new bootstrap.Modal(document.getElementById('editProjectModal'));
+            modal.show();
+        };
+
+        window.deleteProject = async function(id) {
+            if(confirm('Are you sure you want to delete this project?')) {
+                try {
+                    const res = await fetch('/api/delete_project/' + id, { method: 'DELETE' });
+                    const data = await res.json();
+                    if(data.success) {
+                        loadProjects();
+                    } else {
+                        alert('Error deleting project');
+                    }
+                } catch(e) { console.error(e); }
+            }
+        };
+
+        const editProjectForm = document.getElementById('editProjectForm');
+        if (editProjectForm) {
+            editProjectForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = document.getElementById('editProjId').value;
+                const teamCheckboxes = document.querySelectorAll('.edit-team-checkbox:checked');
+                const selectedTeam = Array.from(teamCheckboxes).map(cb => cb.value).join(', ');
+                
+                const payload = {
+                    name: document.getElementById('editProjName').value,
+                    client: document.getElementById('editProjClient').value,
+                    team: selectedTeam,
+                    start_date: document.getElementById('editProjStartDate').value,
+                    costing: document.getElementById('editProjCosting').value,
+                    deadline: document.getElementById('editProjDeadline').value,
+                    status: document.getElementById('editProjStatus').value
+                };
+                try {
+                    const res = await fetch('/api/edit_project/' + id, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await res.json();
+                    if(data.success) {
+                        bootstrap.Modal.getInstance(document.getElementById('editProjectModal')).hide();
+                        loadProjects();
+                    } else {
+                        alert('Error updating project');
+                    }
+                } catch(err) {
+                    console.error(err);
+                }
+            });
+        }
     
     // Daily Work Management Logic
     const workTableBody = document.getElementById('workTableBody');
@@ -1251,10 +1347,10 @@ document.addEventListener('DOMContentLoaded', () => {
             
             records.forEach(report => {
                     let badgeClass = 'bg-secondary';
-                    if (report.status === 'Approved') badgeClass = 'bg-success';
-                    else if (report.status === 'Pending Review') badgeClass = 'bg-warning text-dark';
-                    else if (report.status === 'Rejected') badgeClass = 'bg-danger';
-                    else if (report.status === 'Changes') badgeClass = 'bg-info text-dark';
+                    if (report.status === 'Done') badgeClass = 'bg-success';
+                    else if (report.status === 'To Do') badgeClass = 'bg-warning text-dark';
+                    else if (report.status === 'In Progress') badgeClass = 'bg-danger';
+                    else if (report.status === 'Review') badgeClass = 'bg-info text-dark';
                     
                     const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(report.name || report.emp_id)}&background=random`;
                     
@@ -1276,7 +1372,15 @@ document.addEventListener('DOMContentLoaded', () => {
                               </div>
                           </td>
                         <td>${report.hours ? report.hours + 'h' : '--'}</td>
-                        <td>${generateStatusSelect('daily_work', report.id, report.status, ['Pending Review', 'Changes', 'Approved', 'Rejected'], badgeClass)}</td>
+                        <td>${generateStatusSelect('daily_work', report.id, report.status, ['To Do', 'Review', 'In Progress', 'Done'], badgeClass)}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditWorkModal(${JSON.stringify(report).replace(/&/g, '&amp;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;')})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteWork(${report.id})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
                     `;
                     workTableBody.appendChild(tr);
                 });
@@ -1314,18 +1418,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetch('/api/employees');
                 const employees = await response.json();
                 const select = document.getElementById('workEmployee');
-                if (select) {
-                    // Keep the first default option
-                    select.innerHTML = '<option value="">Select Employee</option>';
-                    employees.forEach(emp => {
-                        if (emp.status === 'Active') {
-                            const option = document.createElement('option');
-                            option.value = emp.employee_id;
-                            option.textContent = `${emp.name} (${emp.employee_id})`;
-                            select.appendChild(option);
-                        }
-                    });
-                }
+                const editSelect = document.getElementById('editWorkEmployee');
+                let optionsHtml = '<option value="">Select Employee</option>';
+                employees.forEach(emp => {
+                    if (emp.status === 'Active') {
+                        optionsHtml += `<option value="${emp.employee_id}">${emp.name} (${emp.employee_id})</option>`;
+                    }
+                });
+                if (select) select.innerHTML = optionsHtml;
+                if (editSelect) editSelect.innerHTML = optionsHtml;
             } catch (err) {
                 console.error("Error fetching employees for dropdown", err);
             }
@@ -1333,6 +1434,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         loadWorkReports();
         loadEmployeesForWork();
+        fetchAllProjectsForWork();
         
         const addWorkForm = document.getElementById('addWorkForm');
         if (addWorkForm) {
@@ -1341,14 +1443,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const newReport = {
                     emp_id: document.getElementById('workEmployee').value,
                     date: document.getElementById('workDate').value,
-                    project: document.getElementById('workProject').value,
-                    hours: document.getElementById('workHours').value,
+                    project: document.getElementById('workProject').value === 'Other' ? document.getElementById('workProjectOther').value : document.getElementById('workProject').value,
+                    time: document.getElementById('workTime').value,
                     description: document.getElementById('workDescription').value,
                     status: document.getElementById('workStatus').value
                 };
                 
                 try {
-                    const response = await fetch('/api/daily_work', {
+                    const response = await fetch('/api/save_work', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(newReport)
@@ -1411,6 +1513,14 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <td>${c.phone || '-'}</td>
                                 <td>${c.email || '-'}</td>
                                 <td>${generateStatusSelect('clients', c.id, c.status, ['Leads', 'Active', 'Completed', 'Inactive'], badgeClass)}</td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-light btn-action" onclick='openEditClientModal(${JSON.stringify(c).replace(/'/g, "\\'")})'>
+                                        <i class="fas fa-edit text-primary"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-light btn-action text-danger" onclick="deleteClient(${c.id})">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </td>
                             </tr>
                         `;
                     });
@@ -1460,6 +1570,60 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     }
+
+        window.openEditClientModal = function(client) {
+            document.getElementById('editClientId').value = client.id;
+            document.getElementById('editClientName').value = client.name;
+            document.getElementById('editClientCompany').value = client.company;
+            document.getElementById('editClientPhone').value = client.phone;
+            document.getElementById('editClientEmail').value = client.email;
+            var modal = new bootstrap.Modal(document.getElementById('editClientModal'));
+            modal.show();
+        };
+
+        window.deleteClient = async function(id) {
+            if(confirm('Are you sure you want to delete this client?')) {
+                try {
+                    const res = await fetch('/api/delete_client/' + id, { method: 'DELETE' });
+                    const data = await res.json();
+                    if(data.success) {
+                        loadClients();
+                    } else {
+                        alert('Error deleting client');
+                    }
+                } catch(e) { console.error(e); }
+            }
+        };
+
+        const editClientForm = document.getElementById('editClientForm');
+        if (editClientForm) {
+            editClientForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = document.getElementById('editClientId').value;
+                const payload = {
+                    name: document.getElementById('editClientName').value,
+                    company: document.getElementById('editClientCompany').value,
+                    phone: document.getElementById('editClientPhone').value,
+                    email: document.getElementById('editClientEmail').value
+                };
+                try {
+                    const res = await fetch('/api/edit_client/' + id, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await res.json();
+                    if(data.success) {
+                        bootstrap.Modal.getInstance(document.getElementById('editClientModal')).hide();
+                        loadClients();
+                    } else {
+                        alert('Error updating client');
+                    }
+                } catch(err) {
+                    console.error(err);
+                }
+            });
+        }
     
     // Attendance Page Leave Requests Logic
     const leaveTableBody = document.getElementById('leaveTableBody');
@@ -1656,10 +1820,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 works.forEach(w => {
                     let badgeClass = 'bg-secondary';
-                    if (w.status === 'Approved') badgeClass = 'bg-success';
-                    else if (w.status === 'Pending Review') badgeClass = 'bg-warning text-dark';
-                    else if (w.status === 'Rejected') badgeClass = 'bg-danger';
-                    else if (w.status === 'Changes') badgeClass = 'bg-info text-dark';
+                    if (w.status === 'Done') badgeClass = 'bg-success';
+                    else if (w.status === 'To Do') badgeClass = 'bg-warning text-dark';
+                    else if (w.status === 'In Progress') badgeClass = 'bg-danger';
+                    else if (w.status === 'Review') badgeClass = 'bg-info text-dark';
                     
                     let adminReviewHtml = '';
                     if (w.admin_review && w.admin_review.trim() !== '') {
@@ -1877,6 +2041,7 @@ async function fetchPendingProjects() {
         projects.forEach(p => {
             optionsHtml += `<option value="${p.name}">${p.name} (${p.status})</option>`;
         });
+        optionsHtml += '<option value="Other">Other</option>';
         
         if (workSelect) workSelect.innerHTML = optionsHtml;
         if (modalSelect) modalSelect.innerHTML = optionsHtml;
@@ -1928,9 +2093,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         newWf.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const project = document.getElementById('workProject').value;
+            const project = document.getElementById('workProject').value === 'Other' ? document.getElementById('workProjectOther').value : document.getElementById('workProject').value;
             const description = document.getElementById('workDescription').value;
-            const hours = document.getElementById('workHours').value;
+            const time = document.getElementById('workTime').value;
             
             if(!project) return alert("Please select a project");
             
@@ -1938,7 +2103,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const res = await fetch('/api/save_work', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ project, description, hours })
+                    body: JSON.stringify({ project, description, time })
                 });
                 const data = await res.json();
                 if (data.success) {
@@ -1982,7 +2147,7 @@ async function loadTodaysSubmissions() {
                         <div class="text-muted small text-truncate" style="max-width: 250px;">${w.description}</div>
                     </div>
                     <div class="text-end">
-                        <div class="badge ${w.status === 'Approved' ? 'bg-success' : w.status === 'Changes Requested' ? 'bg-danger' : 'bg-warning'}">${w.status}</div>
+                        <div class="badge ${w.status === 'Done' ? 'bg-success' : w.status === 'Changes Requested' ? 'bg-danger' : 'bg-warning'}">${w.status}</div>
                         <div class="text-muted" style="font-size: 0.75rem;">${w.time}</div>
                     </div>
                 </div>
@@ -2266,4 +2431,145 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Toggle Password Visibility on Login Page
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+    const togglePasswordIcon = document.getElementById('togglePasswordIcon');
+    
+    if (togglePassword && passwordInput && togglePasswordIcon) {
+        togglePassword.addEventListener('click', function () {
+            // Toggle the type attribute
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            
+            // Toggle the icon
+            if (type === 'password') {
+                togglePasswordIcon.classList.remove('fa-eye-slash');
+                togglePasswordIcon.classList.add('fa-eye');
+            } else {
+                togglePasswordIcon.classList.remove('fa-eye');
+                togglePasswordIcon.classList.add('fa-eye-slash');
+            }
+        });
+    }
+
+    // Toggle Password Visibility on Add Employee Page
+    const toggleEmpPassword = document.getElementById('toggleEmpPassword');
+    const empPasswordInput = document.getElementById('empPassword');
+    const toggleEmpPasswordIcon = document.getElementById('toggleEmpPasswordIcon');
+    
+    if (toggleEmpPassword && empPasswordInput && toggleEmpPasswordIcon) {
+        toggleEmpPassword.addEventListener('click', function () {
+            const type = empPasswordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            empPasswordInput.setAttribute('type', type);
+            
+            if (type === 'password') {
+                toggleEmpPasswordIcon.classList.remove('fa-eye-slash');
+                toggleEmpPasswordIcon.classList.add('fa-eye');
+            } else {
+                toggleEmpPasswordIcon.classList.remove('fa-eye');
+                toggleEmpPasswordIcon.classList.add('fa-eye-slash');
+            }
+        });
+    }
+});
+
+async function fetchAllProjectsForWork() {
+    try {
+        const res = await fetch('/api/projects');
+        const projects = await res.json();
+        const workSelect = document.getElementById('workProject');
+        const editWorkSelect = document.getElementById('editWorkProject');
+        
+        let optionsHtml = '<option value="" disabled selected>Select Project...</option>';
+        projects.forEach(p => {
+            optionsHtml += `<option value="${p.name}">${p.name} (${p.status})</option>`;
+        });
+        optionsHtml += '<option value="Other">Other</option>';
+        if (workSelect) workSelect.innerHTML = optionsHtml;
+        if (editWorkSelect) editWorkSelect.innerHTML = optionsHtml;
+    } catch(err) {
+        console.error("Failed to load projects", err);
+    }
+}
+
+window.openEditWorkModal = function(report) {
+    document.getElementById('editWorkId').value = report.id;
+    document.getElementById('editWorkEmployee').value = report.emp_id || '';
+    document.getElementById('editWorkDate').value = report.date || '';
+    
+    // Set project
+    const projSelect = document.getElementById('editWorkProject');
+    let hasProj = false;
+    Array.from(projSelect.options).forEach(opt => {
+        if(opt.value === report.project) hasProj = true;
+    });
+    if(hasProj) {
+        projSelect.value = report.project;
+        document.getElementById('editOtherProjectDiv').style.display = 'none';
+    } else {
+        projSelect.value = 'Other';
+        document.getElementById('editOtherProjectDiv').style.display = 'block';
+        document.getElementById('editWorkProjectOther').value = report.project;
+    }
+    
+    document.getElementById('editWorkTime').value = report.time || '';
+    document.getElementById('editWorkDescription').value = report.description || '';
+    document.getElementById('editWorkStatus').value = report.status || 'To Do';
+    
+    new bootstrap.Modal(document.getElementById('editWorkModal')).show();
+};
+
+window.deleteWork = async function(id) {
+    if(!confirm('Are you sure you want to delete this work report?')) return;
+    try {
+        const res = await fetch(`/api/delete_work/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if(data.success) {
+            loadWorkReports();
+        } else {
+            alert('Failed to delete');
+        }
+    } catch(err) {
+        console.error(err);
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const editWorkForm = document.getElementById('editWorkForm');
+    if (editWorkForm) {
+        editWorkForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const projSelect = document.getElementById('editWorkProject').value;
+            const project = projSelect === 'Other' ? document.getElementById('editWorkProjectOther').value : projSelect;
+            
+            const payload = {
+                id: document.getElementById('editWorkId').value,
+                emp_id: document.getElementById('editWorkEmployee').value,
+                date: document.getElementById('editWorkDate').value,
+                project: project,
+                time: document.getElementById('editWorkTime').value,
+                description: document.getElementById('editWorkDescription').value,
+                status: document.getElementById('editWorkStatus').value
+            };
+            
+            try {
+                const res = await fetch('/api/edit_daily_work', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if(data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('editWorkModal')).hide();
+                    loadWorkReports();
+                } else {
+                    alert('Error updating');
+                }
+            } catch(err) {
+                console.error(err);
+            }
+        });
+    }
 });

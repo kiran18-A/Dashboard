@@ -59,8 +59,8 @@
         <div class="sidebar-menu py-3">
             <a href="admin-dashboard.html" class="nav-link"><i class="fas fa-home"></i> Dashboard</a>
             <a href="employees.html" class="nav-link"><i class="fas fa-users"></i> Employees</a>
-            <a href="projects.html" class="nav-link active"><i class="fas fa-project-diagram"></i> Projects</a>
             <a href="clients.html" class="nav-link"><i class="fas fa-briefcase"></i> Clients</a>
+            <a href="projects.html" class="nav-link active"><i class="fas fa-project-diagram"></i> Projects</a>
             <a href="daily-work.html" class="nav-link"><i class="fas fa-clipboard-list"></i> Daily Work Report</a>
 <a href="#financeSubmenu" data-bs-toggle="collapse" class="nav-link d-flex align-items-center"><i class="fas fa-wallet"></i> Finance <i class="fas fa-chevron-down ms-auto" style="font-size:0.8em"></i></a>
             <div class="collapse " id="financeSubmenu">
@@ -106,7 +106,7 @@
                 <div class="col-12 col-md-auto col-lg"><div class="glass-card p-4 text-center"><h3 class="fw-bold text-success mb-1" id="statRunningProjects">0</h3><p class="text-muted mb-0 fw-semibold">Running</p></div></div>
                 <div class="col-12 col-md-auto col-lg"><div class="glass-card p-4 text-center"><h3 class="fw-bold text-secondary mb-1" id="statTestingProjects">0</h3><p class="text-muted mb-0 fw-semibold">Testing</p></div></div>
                 <div class="col-12 col-md-auto col-lg"><div class="glass-card p-4 text-center"><h3 class="fw-bold text-info mb-1" id="statCompletedProjects">0</h3><p class="text-muted mb-0 fw-semibold">Completed</p></div></div>
-                <div class="col-12 col-md-auto col-lg"><div class="glass-card p-4 text-center"><h3 class="fw-bold text-warning mb-1" id="statPendingProjects">0</h3><p class="text-muted mb-0 fw-semibold">Pending</p></div></div>
+                <div class="col-12 col-md-auto col-lg"><div class="glass-card p-4 text-center"><h3 class="fw-bold text-warning mb-1" id="statPendingProjects">0</h3><p class="text-muted mb-0 fw-semibold">Onboarding</p></div></div>
             </div>
 
             <div class="glass-card p-4">
@@ -121,8 +121,11 @@
                                 <th>Project Name</th>
                                 <th>Client</th>
                                 <th>Team</th>
+                                <th>Start Date</th>
+                                <th>Costing</th>
                                 <th>Deadline</th>
                                 <th>Status</th>
+                                <th class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="projectTableBody">
@@ -161,9 +164,19 @@
                         <!-- Checkboxes populated by JS -->
                     </div>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Deadline</label>
-                    <input type="date" class="form-control" id="projDeadline" required>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-semibold">Project Costing (₹)</label>
+                        <input type="number" class="form-control" id="projCosting" min="0" placeholder="0">
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-semibold">Start Date</label>
+                        <input type="date" class="form-control" id="projStartDate">
+                    </div>                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-semibold">Deadline</label>
+                        <input type="date" class="form-control" id="projDeadline" required>
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Status</label>
@@ -171,7 +184,7 @@
                         <option>Running</option>
                         <option>Testing</option>
                         <option>Completed</option>
-                        <option>Pending</option>
+                        <option>Onboarding</option>
                     </select>
                 </div>
                 <div class="text-end mt-4">
@@ -214,6 +227,67 @@
           </div>
           <div class="modal-footer border-top-0">
             <button type="button" class="btn btn-light w-100" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Project Modal -->
+    <div class="modal fade" id="editProjectModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content glass-card border-0">
+          <div class="modal-header border-bottom border-secondary">
+            <h5 class="modal-title fw-bold">Edit Project</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="editProjectForm">
+                <input type="hidden" id="editProjId">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Project Name</label>
+                    <input type="text" class="form-control" id="editProjName" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Client Name</label>
+                    <select class="form-select" id="editProjClient" required>
+                        <option value="" disabled>Select a client...</option>
+                        <option value="Renovora Tech">Renovora Tech</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Team Members</label>
+                    <div class="border rounded p-2 bg-light bg-opacity-10" style="max-height: 120px; overflow-y: auto;" id="editProjTeamContainer">
+                        <!-- Checkboxes populated by JS -->
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-semibold">Project Costing (₹)</label>
+                        <input type="number" class="form-control" id="editProjCosting" min="0" placeholder="0">
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-semibold">Start Date</label>
+                        <input type="date" class="form-control" id="editProjStartDate">
+                    </div>                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-semibold">Deadline</label>
+                        <input type="date" class="form-control" id="editProjDeadline" required>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Status</label>
+                    <select class="form-select" id="editProjStatus">
+                        <option value="Running">Running</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Onboarding">Onboarding</option>
+                        <option value="Testing">Testing</option>
+                    </select>
+                </div>
+                <div class="text-end mt-4">
+                    <button type="button" class="btn btn-light me-2 px-4 rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary px-4 rounded-pill">Save Changes</button>
+                </div>
+            </form>
           </div>
         </div>
       </div>

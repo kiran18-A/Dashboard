@@ -58,8 +58,8 @@
         <div class="sidebar-menu py-3">
             <a href="admin-dashboard.html" class="nav-link"><i class="fas fa-home"></i> Dashboard</a>
             <a href="employees.html" class="nav-link"><i class="fas fa-users"></i> Employees</a>
-            <a href="projects.html" class="nav-link"><i class="fas fa-project-diagram"></i> Projects</a>
             <a href="clients.html" class="nav-link"><i class="fas fa-briefcase"></i> Clients</a>
+            <a href="projects.html" class="nav-link"><i class="fas fa-project-diagram"></i> Projects</a>
             <a href="daily-work.html" class="nav-link active"><i class="fas fa-clipboard-list"></i> Daily Work Report</a>
 <a href="#financeSubmenu" data-bs-toggle="collapse" class="nav-link d-flex align-items-center"><i class="fas fa-wallet"></i> Finance <i class="fas fa-chevron-down ms-auto" style="font-size:0.8em"></i></a>
             <div class="collapse " id="financeSubmenu">
@@ -129,6 +129,7 @@
                                 <th>Today's Work</th>
                                 <th>Review</th>
                                 <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="workTableBody">
@@ -162,11 +163,17 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Project Name</label>
-                    <input type="text" class="form-control" id="workProject" placeholder="E.g. CRM Redesign">
+                    <select class="form-select" id="workProject" onchange="document.getElementById('otherProjectDiv').style.display = this.value === 'Other' ? 'block' : 'none'">
+                        <option value="" disabled selected>Loading projects...</option>
+                    </select>
+                </div>
+                <div class="mb-3" id="otherProjectDiv" style="display: none;">
+                    <label class="form-label fw-semibold">Enter Project Name</label>
+                    <input type="text" class="form-control" id="workProjectOther" placeholder="E.g. CRM Redesign">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">Time</label>
-                    <input type="time" class="form-control" id="workTime" required>
+                    <label class="form-label fw-semibold">Estimated Time</label>
+                    <input type="text" class="form-control" id="workTime" placeholder="E.g. 2 hours" required>
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Today's Work (Description)</label>
@@ -175,14 +182,72 @@
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Status</label>
                     <select class="form-select" id="workStatus">
-                        <option>Pending Review</option>
-                        <option>Approved</option>
-                        <option>Rejected</option>
+                        <option>To Do</option>
+                        <option>Review</option>
+                        <option>In Progress</option>
+                        <option>Done</option>
                     </select>
                 </div>
                 <div class="text-end mt-4">
                     <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Report</button>
+                </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<div class="modal fade" id="editWorkModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content glass-card border-0">
+          <div class="modal-header border-bottom border-secondary">
+            <h5 class="modal-title fw-bold">Edit Daily Work Report</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="editWorkForm">
+                    <input type="hidden" id="editWorkId">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Employee</label>
+                    <select class="form-select" id="editWorkEmployee" required>
+                        <option value="">Select Employee</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Date</label>
+                    <input type="date" class="form-control" id="editWorkDate" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Project Name</label>
+                    <select class="form-select" id="editWorkProject" onchange="document.getElementById('editOtherProjectDiv').style.display = this.value === 'Other' ? 'block' : 'none'">
+                        <option value="" disabled selected>Loading projects...</option>
+                    </select>
+                </div>
+                <div class="mb-3" id="editOtherProjectDiv" style="display: none;">
+                    <label class="form-label fw-semibold">Enter Project Name</label>
+                    <input type="text" class="form-control" id="editWorkProjectOther" placeholder="E.g. CRM Redesign">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Estimated Time</label>
+                    <input type="text" class="form-control" id="editWorkTime" placeholder="E.g. 2 hours" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Today's Work (Description)</label>
+                    <textarea class="form-control" id="editWorkDescription" rows="3" required></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Status</label>
+                    <select class="form-select" id="editWorkStatus">
+                        <option>To Do</option>
+                        <option>Review</option>
+                        <option>In Progress</option>
+                        <option>Done</option>
+                    </select>
+                </div>
+                <div class="text-end mt-4">
+                    <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Report</button>
                 </div>
             </form>
           </div>

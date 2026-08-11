@@ -92,16 +92,21 @@ async function renderCharts() {
         const pieOptions = { ...commonOptions };
         delete pieOptions.scales; // Pie charts don't have x/y scales
         
-        // Use default palette for pie chart
-        const palette = [colors.accent, colors.primary, colors.warning, colors.danger, '#8B5CF6', '#EC4899'];
-        
+        // Map specific statuses to requested colors
+        const colorMap = {
+            'Running': colors.primary, // Blue
+            'Testing': colors.warning, // Yellow
+            'Completed': colors.accent // Green
+        };
+        const bgColors = dashboardData.project_status.labels.map(label => colorMap[label] || '#8B5CF6');
+
         const chart = new Chart(projectCtx, {
             type: 'doughnut',
             data: {
                 labels: dashboardData.project_status.labels.length > 0 ? dashboardData.project_status.labels : ['No Projects'],
                 datasets: [{
                     data: dashboardData.project_status.data.length > 0 ? dashboardData.project_status.data : [1],
-                    backgroundColor: palette.slice(0, Math.max(1, dashboardData.project_status.labels.length)),
+                    backgroundColor: dashboardData.project_status.labels.length > 0 ? bgColors : ['#e5e7eb'],
                     borderWidth: 0
                 }]
             },

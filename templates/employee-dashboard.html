@@ -120,13 +120,17 @@
                             <div class="row mb-3">
                                 <div class="col-md-8">
                                     <label class="form-label">Project</label>
-                                    <select class="form-select" id="workProject" required>
-                                        <option value="" disabled selected>Select a project</option>
+                                    <select class="form-select" id="workProject" required onchange="document.getElementById('otherProjectDiv').style.display = this.value === 'Other' ? 'block' : 'none'">
+                                        <option value="" disabled selected>Loading projects...</option>
                                     </select>
                                 </div>
+                                <div class="col-md-12 mt-3" id="otherProjectDiv" style="display: none;">
+                                    <label class="form-label">Enter Project Name</label>
+                                    <input type="text" class="form-control" id="workProjectOther" placeholder="E.g. CRM Redesign">
+                                </div>
                                 <div class="col-md-4">
-                                    <label class="form-label">Time</label>
-                                    <input type="time" class="form-control" id="workTime" required>
+                                    <label class="form-label">Estimated Time</label>
+                                    <input type="text" class="form-control" id="workTime" placeholder="E.g. 2 hours" required>
                                 </div>
                             </div>
                             <div class="mb-3">
