@@ -2192,7 +2192,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (forgotPasswordForm) {
         forgotPasswordForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const fpIdentifier = document.getElementById('fpIdentifier').value;
             const fpBtnText = document.getElementById('fpBtnText');
             const fpBtnSpinner = document.getElementById('fpBtnSpinner');
             
@@ -2203,7 +2202,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const res = await fetch('/api/forgot_password', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ identifier: fpIdentifier })
+                    body: JSON.stringify({ identifier: 'admin' })
                 });
                 const data = await res.json();
                 
