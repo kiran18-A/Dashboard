@@ -2186,4 +2186,85 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+    
+    // Forgot Password Logic
+    const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+    if (forgotPasswordForm) {
+        forgotPasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fpIdentifier = document.getElementById('fpIdentifier').value;
+            const fpBtnText = document.getElementById('fpBtnText');
+            const fpBtnSpinner = document.getElementById('fpBtnSpinner');
+            
+            fpBtnText.classList.add('d-none');
+            fpBtnSpinner.classList.remove('d-none');
+            
+            try {
+                const res = await fetch('/api/forgot_password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ identifier: fpIdentifier })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert(data.message);
+                    bootstrap.Modal.getInstance(document.getElementById('forgotPasswordModal')).hide();
+                    forgotPasswordForm.reset();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('An error occurred while sending the reset link.');
+            } finally {
+                fpBtnText.classList.remove('d-none');
+                fpBtnSpinner.classList.add('d-none');
+            }
+        });
+    }
+    // Change Password Logic
+    const changePasswordForm = document.getElementById('changePasswordForm');
+    if (changePasswordForm) {
+        changePasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const currentPassword = document.getElementById('cpCurrent').value;
+            const newPassword = document.getElementById('cpNew').value;
+            const confirmPassword = document.getElementById('cpConfirm').value;
+            const cpBtnText = document.getElementById('cpBtnText');
+            const cpBtnSpinner = document.getElementById('cpBtnSpinner');
+            
+            if (newPassword !== confirmPassword) {
+                alert('New passwords do not match!');
+                return;
+            }
+            
+            cpBtnText.classList.add('d-none');
+            cpBtnSpinner.classList.remove('d-none');
+            
+            try {
+                const res = await fetch('/api/change_password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert('Password updated successfully!');
+                    bootstrap.Modal.getInstance(document.getElementById('changePasswordModal')).hide();
+                    changePasswordForm.reset();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('An error occurred while updating the password.');
+            } finally {
+                cpBtnText.classList.remove('d-none');
+                cpBtnSpinner.classList.add('d-none');
+            }
+        });
+    }
+
 });

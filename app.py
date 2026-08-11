@@ -3,9 +3,25 @@ import pandas as pd
 import os
 from datetime import datetime, date
 from werkzeug.utils import secure_filename
+from flask_mail import Mail, Message
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'super-secret-key-for-dashboard'
+
+# Mail Configuration
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('mail', 'dummy@example.com').strip('"\' ')
+app.config['MAIL_PASSWORD'] = os.environ.get('password', 'dummy_password').strip('"\' ').replace(' ', '')
+app.config['MAIL_DEFAULT_SENDER'] = app.config['MAIL_USERNAME']
+app.config['MAIL_SUPPRESS_SEND'] = False
+
+mail = Mail(app)
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -254,6 +270,35 @@ def api_checkout():
             return jsonify({'success': True, 'time': datetime.now().strftime("%I:%M %p")})
             
     return jsonify({'success': False, 'message': 'No check-in record found for today'})
+
+@app.route('/api/change_password', methods=['POST'])
+def change_password():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'success': False, 'message': 'Not logged in'}), 401
+    
+    data = request.json
+    current_pw = str(data.get('current_password', ''))
+    new_pw = str(data.get('new_password', ''))
+    
+    users_df = read_excel_cached(get_db_path('users'))
+    if users_df.empty:
+        return jsonify({'success': False, 'message': 'Database error'})
+        
+    mask = users_df['id'] == user_id
+    if not mask.any():
+        return jsonify({'success': False, 'message': 'User not found'})
+        
+    # Check current password
+    user_row = users_df[mask].iloc[0]
+    if str(user_row['password']) != current_pw:
+        return jsonify({'success': False, 'message': 'Incorrect current password'})
+        
+    # Update password
+    users_df.loc[mask, 'password'] = new_pw
+    users_df.to_excel(get_db_path('users'), index=False, engine='openpyxl')
+    
+    return jsonify({'success': True, 'message': 'Password updated successfully'})
 
 @app.route('/api/my_status', methods=['GET'])
 def get_my_status():
@@ -1161,26 +1206,7 @@ def get_all_work():
         return jsonify(df.to_dict('records'))
     return jsonify([])
 
-@app.route('/api/change_password', methods=['POST'])
-def change_password():
-    if 'user_id' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-    data = request.json
-    new_password = data.get('new_password')
-    if not new_password:
-        return jsonify({'error': 'New password is required'}), 400
-        
-    path = get_db_path('users')
-    if os.path.exists(path):
-        df = read_excel_cached(path)
-        user_id = session.get('user_id')
-        idx = df.index[df['id'] == user_id].tolist()
-        if idx:
-            row_idx = idx[0]
-            df.at[row_idx, 'password'] = new_password
-            df.to_excel(path, index=False, engine='openpyxl')
-            return jsonify({'success': True})
-    return jsonify({'error': 'User not found'}), 404
+
 
 
 
@@ -1431,6 +1457,59 @@ def api_my_documents_legacy():
         
     my_docs = df[df['emp_id'].astype(str) == str(user_id)].fillna('')
     return jsonify(my_docs.to_dict('records'))
+
+@app.route('/api/forgot_password', methods=['POST'])
+def forgot_password():
+    data = request.json
+    email_or_username = data.get('identifier', '').strip()
+    if not email_or_username:
+        return jsonify({'success': False, 'message': 'Username or Email is required'}), 400
+        
+    users_df = read_excel_cached(get_db_path('users'))
+    if users_df.empty:
+        return jsonify({'success': False, 'message': 'Database error'}), 500
+        
+    # Check if 'email' column exists in users_df, if not add it
+    if 'email' not in users_df.columns:
+        users_df['email'] = ''
+        users_df.loc[users_df['username'] == 'admin', 'email'] = 'admin@itcorp.com'
+        users_df.to_excel(get_db_path('users'), index=False, engine='openpyxl')
+        
+    # Find user by username or email (case insensitive)
+    user = users_df[(users_df['username'].str.lower() == email_or_username.lower()) | (users_df['email'].str.lower() == email_or_username.lower())]
+    
+    if user.empty:
+        return jsonify({'success': False, 'message': 'Account not found'}), 404
+        
+    if str(user.iloc[0].get('role', '')).lower() != 'admin':
+        return jsonify({'success': False, 'message': 'Password reset is only available for administrators. Please contact the admin to reset your password.'}), 403
+        
+    user_email = user.iloc[0]['email']
+    user_password = user.iloc[0]['password']
+    
+    if not user_email or pd.isna(user_email):
+        return jsonify({'success': False, 'message': 'No email address associated with this account'}), 400
+        
+    # Send email with current password
+    try:
+        msg = Message('Your Dashboard Password',
+                    recipients=[user_email])
+        msg.body = f'''Hello,
+
+You requested your password for the Employee Management Dashboard.
+
+Your current password is: {user_password}
+
+Please keep this secure.
+'''
+        mail.send(msg)
+        return jsonify({'success': True, 'message': 'Password has been sent to your email.'})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"Error sending email: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error sending email: {str(e)}'}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
