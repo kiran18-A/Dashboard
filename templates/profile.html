@@ -36,7 +36,7 @@
                         {% if profile_photo %}
                         <img src="{{ profile_photo }}" class="profile-img-sm me-2" style="object-fit: cover;">
                         {% else %}
-                        <img src="https://ui-avatars.com/api/?name={{ name }}&background=10B981&color=fff" class="profile-img-sm me-2">
+                        <img src="/static/assets/img/logo.png" class="profile-img-sm me-2">
                         {% endif %}
                         <span class="d-none d-md-inline fw-semibold" style="color: var(--text-color);">{{ name }}</span>
                     </a>
@@ -56,10 +56,13 @@
                 <div class="position-relative d-inline-block">
                     {% if profile_photo %}
                     <img src="{{ profile_photo }}" class="profile-img-lg mb-3 shadow" style="object-fit: cover;">
+                    <button class="position-absolute bottom-0 start-0 bg-danger text-white rounded-circle p-2 shadow cursor-pointer border-0" style="cursor: pointer; transform: translate(10px, -20px);" onclick="removeProfilePhoto()" title="Remove Photo">
+                        <i class="fas fa-trash"></i>
+                    </button>
                     {% else %}
-                    <img src="https://ui-avatars.com/api/?name={{ name }}&background=10B981&color=fff&size=120" class="profile-img-lg mb-3 shadow">
+                    <img src="/static/assets/img/logo.png" class="profile-img-lg mb-3 shadow">
                     {% endif %}
-                    <label for="profilePhotoInput" class="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle p-2 shadow cursor-pointer" style="cursor: pointer; transform: translate(-10px, -20px);">
+                    <label for="profilePhotoInput" class="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle p-2 shadow cursor-pointer" style="cursor: pointer; transform: translate(-10px, -20px);" title="Upload Photo">
                         <i class="fas fa-camera"></i>
                     </label>
                     <input type="file" id="profilePhotoInput" class="d-none" accept="image/*">
@@ -89,6 +92,10 @@
                         <div class="mb-3">
                             <label class="text-muted small fw-semibold">Phone Number</label>
                             <p class="fw-semibold mb-0" id="display-phone">{{ phone }}</p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="text-muted small fw-semibold">Emergency Contact Name</label>
+                            <p class="fw-semibold mb-0" id="display-emergency-name">{{ emergency_contact_name }}</p>
                         </div>
                         <div class="mb-3">
                             <label class="text-muted small fw-semibold">Emergency Number</label>
@@ -155,6 +162,10 @@
                             <label class="form-label text-muted small fw-semibold">Phone Number</label>
                             <input type="tel" class="form-control" id="editPhone" value="{{ phone }}" required>
                         </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-semibold">Emergency Contact Name</label>
+                            <input type="text" class="form-control" id="editEmergencyName" value="{{ emergency_contact_name }}" placeholder="e.g. John Doe">
+                        </div>
                         <div class="mb-4">
                             <label class="form-label text-muted small fw-semibold">Emergency Number</label>
                             <input type="tel" class="form-control" id="editEmergency" value="{{ emergency_number }}" placeholder="e.g. Spouse, Parent...">
@@ -174,18 +185,22 @@
                 e.preventDefault();
                 const email = document.getElementById('editEmail').value;
                 const phone = document.getElementById('editPhone').value;
+                const emergency_contact_name = document.getElementById('editEmergencyName').value;
                 const emergency_number = document.getElementById('editEmergency').value;
                 
                 try {
                     const res = await fetch('/api/update_profile', {
                         method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ email, phone, emergency_number })
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ email, phone, emergency_contact_name, emergency_number })
                     });
                     const data = await res.json();
                     if(data.success) {
                         document.getElementById('display-email').textContent = email;
                         document.getElementById('display-phone').textContent = phone;
+                        document.getElementById('display-emergency-name').textContent = emergency_contact_name;
                         document.getElementById('display-emergency').textContent = emergency_number;
                         bootstrap.Modal.getInstance(document.getElementById('editProfileModal')).hide();
                     } else {

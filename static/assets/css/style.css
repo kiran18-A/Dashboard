@@ -144,6 +144,14 @@ body {
   z-index: 999;
 }
 
+/* Modals */
+.modal-content {
+  background-color: var(--sidebar-bg);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+}
+
+
 /* Forms & Tables */
 .form-control, .form-select {
   background-color: var(--bg-color);

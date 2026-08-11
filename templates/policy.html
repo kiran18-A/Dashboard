@@ -43,7 +43,7 @@
                 </button>
                 <div class="dropdown">
                     <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        <img src="https://ui-avatars.com/api/?name=Admin+User&background=2563EB&color=fff" class="profile-img-sm me-2">
+                        <img src="/static/assets/img/logo.png" class="profile-img-sm me-2">
                         <span class="d-none d-md-inline fw-semibold" style="color: var(--text-color);">Admin User</span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="profileDropdown">
@@ -60,45 +60,142 @@
             
             <div class="row g-4">
                 <div class="col-12 col-md-4">
-                    <div class="glass-card p-4 h-100 border-top border-4 border-primary">
-                        <div class="text-primary mb-3"><i class="fas fa-clock fa-2x"></i></div>
-                        <h5 class="fw-bold">Office Timing</h5>
-                        <p class="text-muted">Standard office hours are from 9:00 AM to 6:00 PM. A grace period of 15 minutes is allowed.</p>
-                    </div>
+                    <a href="#" class="text-decoration-none text-reset d-block h-100" data-bs-toggle="modal" data-bs-target="#modalTiming">
+                        <div class="glass-card p-4 h-100 border-top border-4 border-primary">
+                            <div class="text-primary mb-3"><i class="fas fa-clock fa-2x"></i></div>
+                            <h5 class="fw-bold">Office Timing</h5>
+                            <p class="text-muted">Standard office hours are from 9:00 AM to 6:00 PM. A grace period of 15 minutes is allowed.</p>
+                        </div>
+                    </a>
                 </div>
                 <div class="col-12 col-md-4">
-                    <div class="glass-card p-4 h-100 border-top border-4 border-success">
-                        <div class="text-success mb-3"><i class="fas fa-plane-departure fa-2x"></i></div>
-                        <h5 class="fw-bold">Leave Policy</h5>
-                        <p class="text-muted">Employees are entitled to 12 casual leaves, 12 sick leaves, and 15 earned leaves annually.</p>
-                    </div>
+                    <a href="#" class="text-decoration-none text-reset d-block h-100" data-bs-toggle="modal" data-bs-target="#modalLeave">
+                        <div class="glass-card p-4 h-100 border-top border-4 border-success">
+                            <div class="text-success mb-3"><i class="fas fa-plane-departure fa-2x"></i></div>
+                            <h5 class="fw-bold">Leave Policy</h5>
+                            <p class="text-muted">Employees are entitled to 12 casual leaves, 12 sick leaves, and 15 earned leaves annually.</p>
+                        </div>
+                    </a>
                 </div>
                 <div class="col-12 col-md-4">
-                    <div class="glass-card p-4 h-100 border-top border-4 border-info">
-                        <div class="text-info mb-3"><i class="fas fa-tshirt fa-2x"></i></div>
-                        <h5 class="fw-bold">Dress Code</h5>
-                        <p class="text-muted">Smart casuals are expected from Monday to Thursday. Casuals are permitted on Fridays.</p>
-                    </div>
+                    <a href="#" class="text-decoration-none text-reset d-block h-100" data-bs-toggle="modal" data-bs-target="#modalDress">
+                        <div class="glass-card p-4 h-100 border-top border-4 border-info">
+                            <div class="text-info mb-3"><i class="fas fa-tshirt fa-2x"></i></div>
+                            <h5 class="fw-bold">Dress Code</h5>
+                            <p class="text-muted">Smart casuals are expected from Monday to Thursday. Casuals are permitted on Fridays.</p>
+                        </div>
+                    </a>
                 </div>
                 <div class="col-12 col-md-4">
-                    <div class="glass-card p-4 h-100 border-top border-4 border-warning">
-                        <div class="text-warning mb-3"><i class="fas fa-handshake fa-2x"></i></div>
-                        <h5 class="fw-bold">Work Ethics</h5>
-                        <p class="text-muted">Maintain professionalism, respect diversity, and adhere to the company's code of conduct.</p>
-                    </div>
+                    <a href="#" class="text-decoration-none text-reset d-block h-100" data-bs-toggle="modal" data-bs-target="#modalEthics">
+                        <div class="glass-card p-4 h-100 border-top border-4 border-warning">
+                            <div class="text-warning mb-3"><i class="fas fa-handshake fa-2x"></i></div>
+                            <h5 class="fw-bold">Work Ethics</h5>
+                            <p class="text-muted">Maintain professionalism, respect diversity, and adhere to the company's code of conduct.</p>
+                        </div>
+                    </a>
                 </div>
                 <div class="col-12 col-md-4">
-                    <div class="glass-card p-4 h-100 border-top border-4 border-secondary">
-                        <div class="text-secondary mb-3"><i class="fas fa-laptop fa-2x"></i></div>
-                        <h5 class="fw-bold">Laptop Policy</h5>
-                        <p class="text-muted">Company laptops are for official use only. Ensure data security and report damages immediately.</p>
-                    </div>
+                    <a href="#" class="text-decoration-none text-reset d-block h-100" data-bs-toggle="modal" data-bs-target="#modalLaptop">
+                        <div class="glass-card p-4 h-100 border-top border-4 border-secondary">
+                            <div class="text-secondary mb-3"><i class="fas fa-laptop fa-2x"></i></div>
+                            <h5 class="fw-bold">Laptop Policy</h5>
+                            <p class="text-muted">Company laptops are for official use only. Ensure data security and report damages immediately.</p>
+                        </div>
+                    </a>
                 </div>
                 <div class="col-12 col-md-4">
-                    <div class="glass-card p-4 h-100 border-top border-4 border-danger">
-                        <div class="text-danger mb-3"><i class="fas fa-wifi fa-2x"></i></div>
-                        <h5 class="fw-bold">Internet Usage</h5>
-                        <p class="text-muted">Use internet responsibly. Accessing unauthorized or inappropriate sites is strictly prohibited.</p>
+                    <a href="#" class="text-decoration-none text-reset d-block h-100" data-bs-toggle="modal" data-bs-target="#modalInternet">
+                        <div class="glass-card p-4 h-100 border-top border-4 border-danger">
+                            <div class="text-danger mb-3"><i class="fas fa-wifi fa-2x"></i></div>
+                            <h5 class="fw-bold">Internet Usage</h5>
+                            <p class="text-muted">Use internet responsibly. Accessing unauthorized or inappropriate sites is strictly prohibited.</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modals -->
+        <div class="modal fade" id="modalTiming" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content text-bg-dark border-primary border border-2">
+                    <div class="modal-header border-secondary">
+                        <h5 class="modal-title"><i class="fas fa-clock text-primary me-2"></i>Office Timing</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-muted">
+                        <p>Standard office hours are from 9:00 AM to 6:00 PM. A grace period of 15 minutes is allowed.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="modalLeave" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content text-bg-dark border-success border border-2">
+                    <div class="modal-header border-secondary">
+                        <h5 class="modal-title"><i class="fas fa-plane-departure text-success me-2"></i>Leave Policy</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-muted">
+                        <p>Employees are entitled to 12 casual leaves, 12 sick leaves, and 15 earned leaves annually.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="modalDress" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content text-bg-dark border-info border border-2">
+                    <div class="modal-header border-secondary">
+                        <h5 class="modal-title"><i class="fas fa-tshirt text-info me-2"></i>Dress Code</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-muted">
+                        <p>Smart casuals are expected from Monday to Thursday. Casuals are permitted on Fridays.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="modalEthics" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content text-bg-dark border-warning border border-2">
+                    <div class="modal-header border-secondary">
+                        <h5 class="modal-title"><i class="fas fa-handshake text-warning me-2"></i>Work Ethics</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-muted">
+                        <p>Maintain professionalism, respect diversity, and adhere to the company's code of conduct.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="modalLaptop" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content text-bg-dark border-secondary border border-2">
+                    <div class="modal-header border-secondary">
+                        <h5 class="modal-title"><i class="fas fa-laptop text-secondary me-2"></i>Laptop Policy</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-muted">
+                        <p>Company laptops are for official use only. Ensure data security and report damages immediately.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="modalInternet" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content text-bg-dark border-danger border border-2">
+                    <div class="modal-header border-secondary">
+                        <h5 class="modal-title"><i class="fas fa-wifi text-danger me-2"></i>Internet Usage</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-muted">
+                        <p>Use internet responsibly. Accessing unauthorized or inappropriate sites is strictly prohibited.</p>
                     </div>
                 </div>
             </div>

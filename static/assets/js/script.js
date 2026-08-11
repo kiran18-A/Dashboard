@@ -218,6 +218,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 records.forEach(sal => {
                     const amount = parseFloat(sal.amount) || 0;
+                    
+                    if (amount === 0) return; // Hide records with 0 salary
+                    
                     totalTotal += amount;
                     if (sal.status === 'Paid') {
                         paidTotal += amount;
@@ -228,6 +231,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     const isPaid = sal.status === 'Paid';
                     const badgeClass = isPaid ? 'bg-success' : 'bg-warning text-dark';
                     const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(sal.name || sal.employee_id)}&background=random`;
+                    
+                    let formattedDate = '';
+                    if (sal.paid_date && sal.paid_date !== '--') {
+                        const d = new Date(sal.paid_date);
+                        if (!isNaN(d.getTime())) {
+                            formattedDate = d.toISOString().split('T')[0];
+                        }
+                    }
                     
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
@@ -243,8 +254,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td>${sal.paid_date || '--'}</td>
                         <td>
                             ${!isPaid ? `<button class="btn btn-sm btn-success text-white me-1 mark-paid-btn" data-id="${sal.id}"><i class="fas fa-check"></i> Mark Paid</button>` : ''}
-                            <button class="btn btn-sm btn-light text-primary"><i class="fas fa-eye"></i> View</button>
-                            <button class="btn btn-sm btn-light text-primary edit-salary-btn ms-1" data-id="${sal.id}" data-amount="${amount}" data-status="${sal.status}"><i class="fas fa-edit"></i> Edit</button>
+                            <button class="btn btn-sm btn-light text-primary view-salary-btn" data-empid="${sal.employee_id}" data-name="${sal.name || sal.employee_id}"><i class="fas fa-eye"></i> View</button>
+                            <button class="btn btn-sm btn-light text-primary edit-salary-btn ms-1" data-id="${sal.id}" data-amount="${amount}" data-status="${sal.status}" data-date="${formattedDate}"><i class="fas fa-edit"></i> Edit</button>
                         </td>
                     `;
                     salaryTableBody.appendChild(tr);
@@ -279,13 +290,55 @@ document.addEventListener('DOMContentLoaded', () => {
                         const salaryId = e.currentTarget.getAttribute('data-id');
                         const amount = e.currentTarget.getAttribute('data-amount');
                         const status = e.currentTarget.getAttribute('data-status');
+                        const date = e.currentTarget.getAttribute('data-date');
                         
                         document.getElementById('editSalaryId').value = salaryId;
                         document.getElementById('editSalaryAmount').value = amount;
                         document.getElementById('editSalaryStatus').value = status;
+                        document.getElementById('editSalaryDate').value = date || '';
                         
                         const modal = new bootstrap.Modal(document.getElementById('editSalaryModal'));
                         modal.show();
+                    });
+                });
+                
+                // Attach event listeners for view buttons
+                document.querySelectorAll('.view-salary-btn').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const empId = e.currentTarget.getAttribute('data-empid');
+                        const empName = e.currentTarget.getAttribute('data-name');
+                        
+                        try {
+                            const res = await fetch(`/api/salary/employee/${encodeURIComponent(empId)}`);
+                            const data = await res.json();
+                            if (data.success) {
+                                document.getElementById('viewSalaryHistoryTitle').innerText = `Payment History - ${empName}`;
+                                const tbody = document.getElementById('salaryHistoryTableBody');
+                                tbody.innerHTML = '';
+                                
+                                data.history.forEach(record => {
+                                    const amount = parseFloat(record.amount) || 0;
+                                    const isPaid = record.status === 'Paid';
+                                    const badgeClass = isPaid ? 'bg-success' : 'bg-warning text-dark';
+                                    
+                                    const tr = document.createElement('tr');
+                                    tr.innerHTML = `
+                                        <td class="px-4">${record.month}</td>
+                                        <td class="px-4 fw-semibold">₹${amount.toLocaleString()}</td>
+                                        <td class="px-4"><span class="badge ${badgeClass}">${record.status}</span></td>
+                                        <td class="px-4 text-end text-muted">${record.paid_date || '--'}</td>
+                                    `;
+                                    tbody.appendChild(tr);
+                                });
+                                
+                                const modal = new bootstrap.Modal(document.getElementById('viewSalaryHistoryModal'));
+                                modal.show();
+                            } else {
+                                alert('Error fetching history: ' + (data.error || ''));
+                            }
+                        } catch (err) {
+                            alert('Error fetching salary history');
+                        }
                     });
                 });
                 
@@ -303,7 +356,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const salaryId = document.getElementById('editSalaryId').value;
                 const updateData = {
                     amount: parseFloat(document.getElementById('editSalaryAmount').value),
-                    status: document.getElementById('editSalaryStatus').value
+                    status: document.getElementById('editSalaryStatus').value,
+                    paid_date: document.getElementById('editSalaryDate').value
                 };
                 
                 try {
@@ -482,7 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="col-md-6"><p class="mb-1 text-muted small">Joining Date</p><h6 class="fw-bold">${p.joining_date}</h6></div>
                         <div class="col-md-6"><p class="mb-1 text-muted small">Status</p><h6 class="fw-bold">${p.status}</h6></div>
                         <div class="col-md-6"><p class="mb-1 text-muted small">Base Salary</p><h6 class="fw-bold">₹${parseFloat(p.salary || 0).toLocaleString()}</h6></div>
-                        <div class="col-md-12"><p class="mb-1 text-muted small">Current Project Working On</p><h6 class="fw-bold text-primary">${p.current_projects || 'None'}</h6></div>
+                        <div class="col-md-12"><p class="mb-1 text-muted small">Current Project Working On</p><h6 class="fw-bold text-primary">${p.current_project || 'None'}</h6></div>
                         <div class="col-md-12 mt-3 text-end">
                             <button class="btn btn-primary btn-sm" id="editProfileBtn"><i class="fas fa-edit"></i> Edit Profile</button>
                         </div>
@@ -2015,6 +2069,25 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+async function removeProfilePhoto() {
+    if (!confirm('Are you sure you want to remove your profile photo?')) return;
+    
+    try {
+        const res = await fetch('/api/remove-profile-photo', {
+            method: 'POST'
+        });
+        const data = await res.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message || 'Failed to remove photo');
+        }
+    } catch (err) {
+        console.error(err);
+        alert('An error occurred');
+    }
+}
 
 // 3. Load My Documents
 async function loadMyDocuments() {

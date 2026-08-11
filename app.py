@@ -29,6 +29,18 @@ def read_excel_cached(path):
         }
     return _df_cache[path]['df'].copy()
 
+def format_phone_number(val):
+    if pd.isna(val) or str(val).strip() == '':
+        return 'N/A'
+    try:
+        fval = float(val)
+        if fval.is_integer():
+            return str(int(fval))
+    except (ValueError, TypeError):
+        pass
+    return str(val)
+
+
 def init_excel():
     files_to_create = {
         'users': pd.DataFrame({
@@ -112,11 +124,12 @@ def serve_page(page):
                     'employee_id': emp_row.get('employee_id', 'N/A'),
                     'department': emp_row.get('department', 'N/A'),
                     'email': emp_row.get('email', 'N/A'),
-                    'phone': emp_row.get('phone', 'N/A'),
+                    'phone': format_phone_number(emp_row.get('phone')),
                     'joining_date': emp_row.get('joining_date', 'N/A'),
                     'status': emp_row.get('status', 'Active'),
                     'current_project': assigned_projects,
-                    'emergency_number': emp_row.get('emergency_number', 'N/A'),
+                    'emergency_contact_name': str(emp_row.get('emergency_contact_name', 'N/A')) if not pd.isna(emp_row.get('emergency_contact_name')) else 'N/A',
+                    'emergency_number': format_phone_number(emp_row.get('emergency_number')),
                     'days_worked_month': days_worked
                 })
             else:
@@ -129,10 +142,13 @@ def serve_page(page):
                         u_email = u_row_match.iloc[0].get('email', 'admin@itcorp.com')
                         u_phone = u_row_match.iloc[0].get('phone', 'N/A')
                         u_emer = u_row_match.iloc[0].get('emergency_number', 'N/A')
+                        u_emer_name = u_row_match.iloc[0].get('emergency_contact_name', 'N/A')
                         
                         if pd.isna(u_email) or str(u_email).strip() == '': u_email = 'admin@itcorp.com'
-                        if pd.isna(u_phone) or str(u_phone).strip() == '': u_phone = 'N/A'
-                        if pd.isna(u_emer) or str(u_emer).strip() == '': u_emer = 'N/A'
+                        if pd.isna(u_email) or str(u_email).strip() == '': u_email = 'admin@itcorp.com'
+                        if pd.isna(u_emer_name) or str(u_emer_name).strip() == '': u_emer_name = 'N/A'
+                        u_phone = format_phone_number(u_phone)
+                        u_emer = format_phone_number(u_emer)
 
                 context.update({
                     'designation': session.get('role', 'N/A').title(),
@@ -143,6 +159,7 @@ def serve_page(page):
                     'joining_date': 'N/A',
                     'status': 'Active',
                     'current_project': 'N/A',
+                    'emergency_contact_name': u_emer_name,
                     'emergency_number': u_emer
                 })
         return render_template(f'{page}.html', **context)
@@ -551,7 +568,13 @@ def update_salary(salary_id):
                     sal_df['paid_date'] = ''
                 sal_df['paid_date'] = sal_df['paid_date'].astype(str)
                 
-                if data['status'] == 'Paid':
+                if 'paid_date' in data and data['paid_date']:
+                    try:
+                        parsed = datetime.strptime(data['paid_date'], '%Y-%m-%d')
+                        sal_df.loc[mask, 'paid_date'] = parsed.strftime('%b %d, %Y')
+                    except ValueError:
+                        sal_df.loc[mask, 'paid_date'] = str(data['paid_date'])
+                elif data['status'] == 'Paid':
                     sal_df.loc[mask, 'paid_date'] = datetime.now().strftime('%b %d, %Y')
                 else:
                     sal_df.loc[mask, 'paid_date'] = ''
@@ -560,6 +583,23 @@ def update_salary(salary_id):
             return jsonify({'success': True})
             
     return jsonify({'success': False, 'message': 'Salary record not found'}), 404
+
+
+@app.route('/api/salary/employee/<emp_id>', methods=['GET'])
+def get_employee_salary_history(emp_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    sal_df = read_excel_cached(get_db_path('salary')).fillna('')
+    if sal_df.empty:
+        return jsonify({'success': True, 'history': []})
+        
+    emp_sal = sal_df[sal_df['employee_id'].astype(str) == str(emp_id)]
+    
+    # Hide records with 0 salary
+    emp_sal = emp_sal[pd.to_numeric(emp_sal['amount'], errors='coerce') != 0]
+    
+    return jsonify({'success': True, 'history': emp_sal.to_dict('records')})
 
 
 @app.route('/api/save_work', methods=['POST'])
@@ -742,18 +782,20 @@ def update_profile():
             uidx = udf.index[udf['id'] == session.get('user_id')].tolist()
             if uidx:
                 row_idx = uidx[0]
-                for col in ['email', 'phone', 'emergency_number']:
+                for col in ['email', 'phone', 'emergency_contact_name', 'emergency_number']:
                     if col not in udf.columns:
                         udf[col] = ''
                 
                 # Convert to object to avoid dtype warning
-                for col in ['email', 'phone', 'emergency_number']:
+                for col in ['email', 'phone', 'emergency_contact_name', 'emergency_number']:
                     udf[col] = udf[col].astype(object)
                 
                 if 'email' in data:
                     udf.at[row_idx, 'email'] = str(data['email'])
                 if 'phone' in data:
                     udf.at[row_idx, 'phone'] = str(data['phone'])
+                if 'emergency_contact_name' in data:
+                    udf.at[row_idx, 'emergency_contact_name'] = str(data['emergency_contact_name'])
                 if 'emergency_number' in data:
                     udf.at[row_idx, 'emergency_number'] = str(data['emergency_number'])
                     
@@ -768,17 +810,19 @@ def update_profile():
             idx = df.index[(df['name'] == session.get('name')) | (df['employee_id'] == session.get('user_id'))].tolist()
             if idx:
                 row_idx = idx[0]
-                for col in ['email', 'phone', 'emergency_number']:
+                for col in ['email', 'phone', 'emergency_contact_name', 'emergency_number']:
                     if col not in df.columns:
                         df[col] = ''
                 
-                for col in ['email', 'phone', 'emergency_number']:
+                for col in ['email', 'phone', 'emergency_contact_name', 'emergency_number']:
                     df[col] = df[col].astype(object)
                 
                 if 'email' in data:
                     df.at[row_idx, 'email'] = str(data['email'])
                 if 'phone' in data:
                     df.at[row_idx, 'phone'] = str(data['phone'])
+                if 'emergency_contact_name' in data:
+                    df.at[row_idx, 'emergency_contact_name'] = str(data['emergency_contact_name'])
                 if 'emergency_number' in data:
                     df.at[row_idx, 'emergency_number'] = str(data['emergency_number'])
                 
@@ -1316,6 +1360,24 @@ def api_upload_profile_photo():
                 return jsonify({'success': True, 'photo_url': f"/static/uploads/profiles/{filename}"})
                 
     return jsonify({'success': False, 'message': 'Upload failed'}), 500
+
+@app.route('/api/remove-profile-photo', methods=['POST'])
+def api_remove_profile_photo():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    
+    db_path = get_db_path('users')
+    df = read_excel_cached(db_path)
+    if not df.empty:
+        idx = df.index[df['id'] == user_id].tolist()
+        if idx:
+            df.at[idx[0], 'profile_photo'] = ''
+            df.to_excel(db_path, index=False, engine='openpyxl')
+            return jsonify({'success': True, 'message': 'Photo removed'})
+            
+    return jsonify({'success': False, 'message': 'Failed to remove photo'}), 500
+
 
 @app.route('/api/upload-document', methods=['POST'])
 def api_upload_document():
