@@ -34,12 +34,12 @@
                 </button>
                 <div class="dropdown">
                     <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        {% if profile_photo %}
-                        <img src="{{ profile_photo }}" class="profile-img-sm me-2" style="object-fit: cover;">
-                        {% else %}
+                        
+                        <img id=\"headerProfilePhoto\" src=\"\" class="profile-img-sm me-2" style="object-fit: cover;">
+                        
                         <img src="/static/assets/img/logo.png" class="profile-img-sm me-2">
-                        {% endif %}
-                        <span class="d-none d-md-inline fw-semibold" style="color: var(--text-color);">{{ name }}</span>
+                        
+                        <span class="d-none d-md-inline fw-semibold" style="color: var(--text-color);"><span class=\"user-name-display\"></span></span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="profileDropdown">
                         <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profile</a></li>
@@ -55,21 +55,21 @@
             
             <div class="glass-card p-4 text-center mb-4 position-relative">
                 <div class="position-relative d-inline-block">
-                    {% if profile_photo %}
-                    <img src="{{ profile_photo }}" class="profile-img-lg mb-3 shadow" style="object-fit: cover;">
+                    
+                    <img id=\"headerProfilePhoto\" src=\"\" class="profile-img-lg mb-3 shadow" style="object-fit: cover;">
                     <button class="position-absolute bottom-0 start-0 bg-danger text-white rounded-circle p-2 shadow cursor-pointer border-0" style="cursor: pointer; transform: translate(10px, -20px);" onclick="removeProfilePhoto()" title="Remove Photo">
                         <i class="fas fa-trash"></i>
                     </button>
-                    {% else %}
+                    
                     <img src="/static/assets/img/logo.png" class="profile-img-lg mb-3 shadow">
-                    {% endif %}
+                    
                     <label for="profilePhotoInput" class="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle p-2 shadow cursor-pointer" style="cursor: pointer; transform: translate(-10px, -20px);" title="Upload Photo">
                         <i class="fas fa-camera"></i>
                     </label>
                     <input type="file" id="profilePhotoInput" class="d-none" accept="image/*">
                 </div>
-                <h3 class="fw-bold">{{ name }}</h3>
-                <p class="text-primary fw-semibold mb-0">{{ designation }} ({{ employee_id }})</p>
+                <h3 class="fw-bold"><span class=\"user-name-display\"></span></h3>
+                <p class="text-primary fw-semibold mb-0"><span id=\"ctxDesignation\"></span> (<span id=\"ctxEmpId\"></span>)</p>
             </div>
 
             <div class="row g-4">
@@ -84,23 +84,23 @@
                         </h5>
                         <div class="mb-3">
                             <label class="text-muted small fw-semibold">Full Name</label>
-                            <p class="fw-semibold mb-0">{{ name }}</p>
+                            <p class="fw-semibold mb-0"><span class=\"user-name-display\"></span></p>
                         </div>
                         <div class="mb-3">
                             <label class="text-muted small fw-semibold">Email Address</label>
-                            <p class="fw-semibold mb-0" id="display-email">{{ email }}</p>
+                            <p class="fw-semibold mb-0" id="display-email"><span id=\"ctxEmail\"></span></p>
                         </div>
                         <div class="mb-3">
                             <label class="text-muted small fw-semibold">Phone Number</label>
-                            <p class="fw-semibold mb-0" id="display-phone">{{ phone }}</p>
+                            <p class="fw-semibold mb-0" id="display-phone"><span id=\"ctxPhone\"></span></p>
                         </div>
                         <div class="mb-3">
                             <label class="text-muted small fw-semibold">Emergency Contact Name</label>
-                            <p class="fw-semibold mb-0" id="display-emergency-name">{{ emergency_contact_name }}</p>
+                            <p class="fw-semibold mb-0" id="display-emergency-name"><span id=\"ctxEmerName\"></span></p>
                         </div>
                         <div class="mb-3">
                             <label class="text-muted small fw-semibold">Emergency Number</label>
-                            <p class="fw-semibold mb-0" id="display-emergency">{{ emergency_number }}</p>
+                            <p class="fw-semibold mb-0" id="display-emergency"><span id=\"ctxEmerNum\"></span></p>
                         </div>
                     </div>
                 </div>
@@ -109,15 +109,15 @@
                         <h5 class="fw-bold border-bottom pb-2 mb-3" style="border-color: var(--border-color) !important;">Company Information</h5>
                         <div class="mb-3">
                             <label class="text-muted small fw-semibold">Department</label>
-                            <p class="fw-semibold mb-0">{{ department }}</p>
+                            <p class="fw-semibold mb-0"><span id=\"ctxDepartment\"></span></p>
                         </div>
                         <div class="mb-3">
                             <label class="text-muted small fw-semibold">Joining Date</label>
-                            <p class="fw-semibold mb-0">{{ joining_date }}</p>
+                            <p class="fw-semibold mb-0"><span id=\"ctxJoiningDate\"></span></p>
                         </div>
                         <div class="mb-3">
                             <label class="text-muted small fw-semibold">Current Status</label>
-                            <p class="mb-0"><span class="badge {% if status == 'Active' %}bg-success{% else %}bg-danger{% endif %}">{{ status }}</span></p>
+                            <p class="mb-0"><span class="badge {% if status == 'Active' %}bg-successbg-danger"><span id=\"ctxStatus\"></span></span></p>
                         </div>
                     </div>
                 </div>
@@ -157,19 +157,19 @@
                     <form id="editProfileForm">
                         <div class="mb-3">
                             <label class="form-label text-muted small fw-semibold">Email Address</label>
-                            <input type="email" class="form-control" id="editEmail" value="{{ email }}" required>
+                            <input type="email" class="form-control" id="editEmail" value="<span id=\"ctxEmail\"></span>" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label text-muted small fw-semibold">Phone Number</label>
-                            <input type="tel" class="form-control" id="editPhone" value="{{ phone }}" required>
+                            <input type="tel" class="form-control" id="editPhone" value="<span id=\"ctxPhone\"></span>" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label text-muted small fw-semibold">Emergency Contact Name</label>
-                            <input type="text" class="form-control" id="editEmergencyName" value="{{ emergency_contact_name }}" placeholder="e.g. John Doe">
+                            <input type="text" class="form-control" id="editEmergencyName" value="<span id=\"ctxEmerName\"></span>" placeholder="e.g. John Doe">
                         </div>
                         <div class="mb-4">
                             <label class="form-label text-muted small fw-semibold">Emergency Number</label>
-                            <input type="tel" class="form-control" id="editEmergency" value="{{ emergency_number }}" placeholder="e.g. Spouse, Parent...">
+                            <input type="tel" class="form-control" id="editEmergency" value="<span id=\"ctxEmerNum\"></span>" placeholder="e.g. Spouse, Parent...">
                         </div>
                         <button type="submit" class="btn btn-primary w-100 fw-semibold shadow-sm">Save Changes</button>
                     </form>
