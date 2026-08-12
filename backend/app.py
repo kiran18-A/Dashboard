@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-app = Flask(__name__, static_folder='../frontend/assets', static_url_path='/static/assets')
+app = Flask(__name__, static_folder='../frontend/assets', static_url_path='/static/assets', template_folder='../frontend')
 
 @app.after_request
 def add_api_headers(response):
