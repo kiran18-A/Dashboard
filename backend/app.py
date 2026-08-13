@@ -4,11 +4,11 @@ import os
 from datetime import datetime, date
 from werkzeug.utils import secure_filename
 from flask_mail import Mail, Message
-import drive_sync
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
 
 app = Flask(__name__, static_folder='../frontend/assets', static_url_path='/static/assets', template_folder='../frontend')
 
@@ -38,37 +38,28 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
 def save_excel_and_sync(df, db_name):
-    import io
-    stream = io.BytesIO()
-    df.to_excel(stream, index=False, engine='openpyxl')
-    stream.seek(0)
-    print(f"Syncing {db_name} to Google Drive (in-memory)...")
-    try:
-        drive_sync.upload_stream(db_name, stream, is_public=False)
-    except Exception as e:
-        print(f"Drive sync failed for {db_name}: {e}")
+    file_path = os.path.join('local_storage', db_name)
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    df.to_excel(file_path, index=False, engine='openpyxl')
+    print(f"Saved {db_name} to local storage.")
 
 _df_cache = {}
 
 def read_excel_cached(db_name):
-    import io
     if db_name in _df_cache:
         return _df_cache[db_name]
-        
-    print(f"Downloading {db_name} from Google Drive (in-memory)...")
-    stream = drive_sync.download_stream(db_name)
-    df = pd.DataFrame()
     
-    if stream:
+    file_path = os.path.join('local_storage', db_name)
+    import pandas as pd
+    
+    if os.path.exists(file_path):
         try:
-            df = pd.read_excel(stream, engine='openpyxl')
+            df = pd.read_excel(file_path, engine='openpyxl')
         except Exception:
-            try:
-                stream.seek(0)
-                df = pd.read_excel(stream)
-            except Exception:
-                pass
-                
+            df = pd.DataFrame()
+    else:
+        df = pd.DataFrame()
+        
     _df_cache[db_name] = df
     return df
 
@@ -128,12 +119,14 @@ def setup():
 
 @app.route('/')
 def index():
-    return send_from_directory('../frontend', 'index.html')
+    import os
+    return send_from_directory(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend')), 'index.html')
 
 @app.route('/<page>.html')
 def serve_page(page):
+    import os
     try:
-        return send_from_directory('../frontend', f'{page}.html')
+        return send_from_directory(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend')), f'{page}.html')
     except Exception as e:
         return f"Page not found: {page}.html", 404
 
@@ -928,10 +921,16 @@ def get_employees():
             pending_leaves = leaves_df[leaves_df['status'].astype(str).str.lower() == 'pending']
             
             def get_pending_leave(u_id):
-                if pd.isna(u_id) or str(u_id).strip() == '': return None
-                try: clean_uid = str(int(float(u_id)))
-                except (ValueError, TypeError): clean_uid = str(u_id).strip()
-                emp_leaves = pending_leaves[pending_leaves['emp_id'].astype(str) == clean_uid]
+                if pd.isna(u_id) or str(u_id).strip() == '':
+                    return None
+                try:
+                    clean_uid = str(int(float(u_id)))
+                except (ValueError, TypeError):
+                    clean_uid = str(u_id).strip()
+                
+                cleaned_emp_ids = pending_leaves['emp_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+                emp_leaves = pending_leaves[cleaned_emp_ids == clean_uid]
+                
                 if not emp_leaves.empty:
                     leave = emp_leaves.iloc[0].to_dict()
                     return leave
