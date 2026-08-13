@@ -32,12 +32,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
 
-            const profileImg = document.getElementById('headerProfilePhoto');
-            if (profileImg && data.profile_photo) {
-                profileImg.src = data.profile_photo;
-            } else if (profileImg) {
-                profileImg.src = "/static/assets/img/default-avatar.png";
-            }
+            const profileImgs = document.querySelectorAll('.dynamic-profile-photo, #headerProfilePhoto');
+            profileImgs.forEach(img => {
+                if (data.profile_photo) {
+                    img.src = data.profile_photo;
+                } else {
+                    img.src = "/static/assets/img/logo.png";
+                }
+            });
         }
     } catch (e) {
         console.error('Error fetching context:', e);

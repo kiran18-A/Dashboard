@@ -584,6 +584,15 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <label class="form-label text-muted small fw-semibold mb-2">Base Salary</label>
                                     <input type="number" class="form-control glass-input py-2" id="editEmpSalary" value="${p.salary}">
                                 </div>
+                                <div class="col-12"><h6 class="fw-bold text-primary border-bottom pb-2 mt-3">Login Details</h6></div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small fw-semibold mb-2">Username</label>
+                                    <input type="text" class="form-control glass-input py-2" id="editEmpUsername" value="${p.username || ''}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small fw-semibold mb-2">New Password (leave blank to keep current)</label>
+                                    <input type="password" class="form-control glass-input py-2" id="editEmpPassword" placeholder="••••••••">
+                                </div>
                                 <div class="col-md-12 mt-4 pt-3 border-top border-secondary text-end">
                                     <button type="button" class="btn btn-light px-4 me-2" id="cancelEditBtn">Cancel</button>
                                     <button type="submit" class="btn btn-success px-4"><i class="fas fa-save me-1"></i> Save Changes</button>
@@ -595,16 +604,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         document.getElementById('editProfileForm').addEventListener('submit', async (ev) => {
                             ev.preventDefault();
                             const updatedData = {
-                                employee_id: document.getElementById('editEmpId').value,
-                                name: document.getElementById('editEmpName').value,
-                                department: document.getElementById('editEmpDept').value,
-                                designation: document.getElementById('editEmpDesig').value,
-                                email: document.getElementById('editEmpEmail').value,
-                                phone: document.getElementById('editEmpPhone').value,
-                                joining_date: document.getElementById('editEmpDate').value,
-                                status: document.getElementById('editEmpStatus').value,
-                                salary: parseFloat(document.getElementById('editEmpSalary').value || 0)
-                            };
+                                  employee_id: document.getElementById('editEmpId').value,
+                                  name: document.getElementById('editEmpName').value,
+                                  department: document.getElementById('editEmpDept').value,
+                                  designation: document.getElementById('editEmpDesig').value,
+                                  email: document.getElementById('editEmpEmail').value,
+                                  phone: document.getElementById('editEmpPhone') ? document.getElementById('editEmpPhone').value : '',
+                                  joining_date: document.getElementById('editEmpDate') ? document.getElementById('editEmpDate').value : '',
+                                  status: document.getElementById('editEmpStatus') ? document.getElementById('editEmpStatus').value : 'Active',
+                                  salary: document.getElementById('editEmpSalary') ? parseFloat(document.getElementById('editEmpSalary').value || 0) : 0,
+                                  username: document.getElementById('editEmpUsername') ? document.getElementById('editEmpUsername').value : '',
+                                  password: document.getElementById('editEmpPassword') ? document.getElementById('editEmpPassword').value : ''
+                              };
                             
                             try {
                                 const updateRes = await fetch(`/api/employees/${p.id}`, {
@@ -2395,6 +2406,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentPassword = document.getElementById('cpCurrent').value;
             const newPassword = document.getElementById('cpNew').value;
             const confirmPassword = document.getElementById('cpConfirm').value;
+            const cpUsernameEl = document.getElementById('cpUsername');
+            const newUsername = cpUsernameEl ? cpUsernameEl.value : '';
             const cpBtnText = document.getElementById('cpBtnText');
             const cpBtnSpinner = document.getElementById('cpBtnSpinner');
             
@@ -2410,7 +2423,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const res = await fetch('/api/change_password', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+                    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword, new_username: newUsername })
                 });
                 const data = await res.json();
                 
@@ -2573,3 +2586,45 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+
+// GLOBAL SUBMIT PROTECTOR
+(function() {
+    let activeButtons = new Set();
+    
+    document.addEventListener('submit', (e) => {
+        const btn = e.target.querySelector('button[type="submit"]');
+        if (btn) {
+            // Prevent double click
+            if (btn.disabled) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                return;
+            }
+            btn.dataset.originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Saving...';
+            btn.disabled = true;
+            activeButtons.add(btn);
+        }
+    }, true); // Use capture phase so it runs first
+
+    const originalFetch = window.fetch;
+    window.fetch = async function(...args) {
+        try {
+            return await originalFetch.apply(this, args);
+        } finally {
+            // If the fetch finished, wait 500ms and re-enable any disabled submit buttons
+            setTimeout(() => {
+                activeButtons.forEach(btn => {
+                    if (document.body.contains(btn)) {
+                        btn.disabled = false;
+                        if (btn.dataset.originalText) {
+                            btn.innerHTML = btn.dataset.originalText;
+                        }
+                    }
+                });
+                activeButtons.clear();
+            }, 500);
+        }
+    };
+})();

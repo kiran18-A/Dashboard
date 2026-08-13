@@ -35,11 +35,9 @@
                 <div class="dropdown">
                     <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                         
-                        <img id=\"headerProfilePhoto\" src=\"\" class="profile-img-sm me-2" style="object-fit: cover;">
+                        <img src="" class="dynamic-profile-photo profile-img-sm me-2" style="object-fit: cover;">
                         
-                        <img src="/static/assets/img/logo.png" class="profile-img-sm me-2">
-                        
-                        <span class="d-none d-md-inline fw-semibold" style="color: var(--text-color);"><span class=\"user-name-display\"></span></span>
+                        <span class="d-none d-md-inline fw-semibold" style="color: var(--text-color);"><span class="user-name-display"></span></span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="profileDropdown">
                         <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profile</a></li>
@@ -56,20 +54,18 @@
             <div class="glass-card p-4 text-center mb-4 position-relative">
                 <div class="position-relative d-inline-block">
                     
-                    <img id=\"headerProfilePhoto\" src=\"\" class="profile-img-lg mb-3 shadow" style="object-fit: cover;">
+                    <img src="" class="dynamic-profile-photo profile-img-lg mb-3 shadow" style="object-fit: cover;">
                     <button class="position-absolute bottom-0 start-0 bg-danger text-white rounded-circle p-2 shadow cursor-pointer border-0" style="cursor: pointer; transform: translate(10px, -20px);" onclick="removeProfilePhoto()" title="Remove Photo">
                         <i class="fas fa-trash"></i>
                     </button>
-                    
-                    <img src="/static/assets/img/logo.png" class="profile-img-lg mb-3 shadow">
                     
                     <label for="profilePhotoInput" class="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle p-2 shadow cursor-pointer" style="cursor: pointer; transform: translate(-10px, -20px);" title="Upload Photo">
                         <i class="fas fa-camera"></i>
                     </label>
                     <input type="file" id="profilePhotoInput" class="d-none" accept="image/*">
                 </div>
-                <h3 class="fw-bold"><span class=\"user-name-display\"></span></h3>
-                <p class="text-primary fw-semibold mb-0"><span id=\"ctxDesignation\"></span> (<span id=\"ctxEmpId\"></span>)</p>
+                <h3 class="fw-bold"><span class="user-name-display"></span></h3>
+                <p class="text-primary fw-semibold mb-0"><span id="ctxDesignation"></span> (<span id="ctxEmpId"></span>)</p>
             </div>
 
             <div class="row g-4">
@@ -84,23 +80,23 @@
                         </h5>
                         <div class="mb-3">
                             <label class="text-muted small fw-semibold">Full Name</label>
-                            <p class="fw-semibold mb-0"><span class=\"user-name-display\"></span></p>
+                            <p class="fw-semibold mb-0"><span class="user-name-display"></span></p>
                         </div>
                         <div class="mb-3">
                             <label class="text-muted small fw-semibold">Email Address</label>
-                            <p class="fw-semibold mb-0" id="display-email"><span id=\"ctxEmail\"></span></p>
+                            <p class="fw-semibold mb-0" id="display-email"><span id="ctxEmail"></span></p>
                         </div>
                         <div class="mb-3">
                             <label class="text-muted small fw-semibold">Phone Number</label>
-                            <p class="fw-semibold mb-0" id="display-phone"><span id=\"ctxPhone\"></span></p>
+                            <p class="fw-semibold mb-0" id="display-phone"><span id="ctxPhone"></span></p>
                         </div>
                         <div class="mb-3">
                             <label class="text-muted small fw-semibold">Emergency Contact Name</label>
-                            <p class="fw-semibold mb-0" id="display-emergency-name"><span id=\"ctxEmerName\"></span></p>
+                            <p class="fw-semibold mb-0" id="display-emergency-name"><span id="ctxEmerName"></span></p>
                         </div>
                         <div class="mb-3">
                             <label class="text-muted small fw-semibold">Emergency Number</label>
-                            <p class="fw-semibold mb-0" id="display-emergency"><span id=\"ctxEmerNum\"></span></p>
+                            <p class="fw-semibold mb-0" id="display-emergency"><span id="ctxEmerNum"></span></p>
                         </div>
                     </div>
                 </div>
@@ -109,15 +105,34 @@
                         <h5 class="fw-bold border-bottom pb-2 mb-3" style="border-color: var(--border-color) !important;">Company Information</h5>
                         <div class="mb-3">
                             <label class="text-muted small fw-semibold">Department</label>
-                            <p class="fw-semibold mb-0"><span id=\"ctxDepartment\"></span></p>
+                            <p class="fw-semibold mb-0"><span id="ctxDepartment"></span></p>
                         </div>
                         <div class="mb-3">
                             <label class="text-muted small fw-semibold">Joining Date</label>
-                            <p class="fw-semibold mb-0"><span id=\"ctxJoiningDate\"></span></p>
+                            <p class="fw-semibold mb-0"><span id="ctxJoiningDate"></span></p>
                         </div>
                         <div class="mb-3">
                             <label class="text-muted small fw-semibold">Current Status</label>
-                            <p class="mb-0"><span class="badge {% if status == 'Active' %}bg-successbg-danger"><span id=\"ctxStatus\"></span></span></p>
+                            <p class="mb-0"><span class="badge {% if status == 'Active' %}bg-successbg-danger"><span id="ctxStatus"></span></span></p>
+                        </div>
+                        <div class="mt-4 pt-3 border-top" style="border-color: var(--border-color) !important;">
+                            <h6 class="fw-bold mb-3"><i class="fas fa-money-bill-wave me-2"></i>Salary History</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle text-center" id="salaryHistoryTable">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Month</th>
+                                            <th>Amount</th>
+                                            <th>Status</th>
+                                            <th>Paid Date</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr><td colspan="5" class="text-muted">Loading...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -157,19 +172,19 @@
                     <form id="editProfileForm">
                         <div class="mb-3">
                             <label class="form-label text-muted small fw-semibold">Email Address</label>
-                            <input type="email" class="form-control" id="editEmail" value="<span id=\"ctxEmail\"></span>" required>
+                            <input type="email" class="form-control" id="editEmail" value="<span id="ctxEmail"></span>" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label text-muted small fw-semibold">Phone Number</label>
-                            <input type="tel" class="form-control" id="editPhone" value="<span id=\"ctxPhone\"></span>" required>
+                            <input type="tel" class="form-control" id="editPhone" value="<span id="ctxPhone"></span>" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label text-muted small fw-semibold">Emergency Contact Name</label>
-                            <input type="text" class="form-control" id="editEmergencyName" value="<span id=\"ctxEmerName\"></span>" placeholder="e.g. John Doe">
+                            <input type="text" class="form-control" id="editEmergencyName" value="<span id="ctxEmerName"></span>" placeholder="e.g. John Doe">
                         </div>
                         <div class="mb-4">
                             <label class="form-label text-muted small fw-semibold">Emergency Number</label>
-                            <input type="tel" class="form-control" id="editEmergency" value="<span id=\"ctxEmerNum\"></span>" placeholder="e.g. Spouse, Parent...">
+                            <input type="tel" class="form-control" id="editEmergency" value="<span id="ctxEmerNum"></span>" placeholder="e.g. Spouse, Parent...">
                         </div>
                         <button type="submit" class="btn btn-primary w-100 fw-semibold shadow-sm">Save Changes</button>
                     </form>
@@ -214,10 +229,156 @@
             });
         }
     });
-            </script>
+
+    // Fetch and display salary history
+    async function loadSalaryHistory() {
+        const empId = document.getElementById('ctxEmpId').textContent;
+        if (!empId) {
+            setTimeout(loadSalaryHistory, 500); // Retry if not loaded yet
+            return;
+        }
+        
+        try {
+            const res = await fetch(`/api/salary/employee/${empId}`);
+            if (!res.ok) throw new Error('Failed to fetch salary data');
+            const data = await res.json();
+            
+            const tbody = document.querySelector('#salaryHistoryTable tbody');
+            tbody.innerHTML = '';
+            
+            if (data.success && data.history && data.history.length > 0) {
+                // Store globally so downloadSalarySlip can access it
+                window.salaryHistoryData = data.history;
+                
+                data.history.forEach((record, index) => {
+                    const row = document.createElement('tr');
+                    
+                    const statusBadge = record.status === 'Paid' 
+                        ? `<span class="badge bg-success">Paid</span>` 
+                        : `<span class="badge bg-warning text-dark">${record.status || 'Pending'}</span>`;
+                        
+                    row.innerHTML = `
+                        <td class="fw-semibold">${record.month || 'N/A'}</td>
+                        <td>$${parseFloat(record.amount || 0).toFixed(2)}</td>
+                        <td>${statusBadge}</td>
+                        <td>${record.paid_date || '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="downloadSalarySlip(${index})" title="Download Slip">
+                                <i class="fas fa-download"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-muted">No salary records found</td></tr>';
+            }
+        } catch (e) {
+            console.error(e);
+            document.querySelector('#salaryHistoryTable tbody').innerHTML = '<tr><td colspan="5" class="text-danger">Failed to load data</td></tr>';
+        }
+    }
+    
+    // Call loadSalaryHistory after a short delay to ensure context.js has populated ctxEmpId
+    setTimeout(loadSalaryHistory, 1000);
+
+    function downloadSalarySlip(index) {
+        if (!window.salaryHistoryData || !window.salaryHistoryData[index]) {
+            alert('Salary data not found.');
+            return;
+        }
+        
+        const empId = document.getElementById('ctxEmpId').textContent;
+        const name = document.querySelector('.user-name-display').textContent;
+        const department = document.getElementById('ctxDepartment').textContent;
+        const designation = document.getElementById('ctxDesignation').textContent;
+        
+        const record = window.salaryHistoryData[index];
+        const month = record.month || 'Current Month';
+        const amount = parseFloat(record.amount || 0).toFixed(2);
+        const status = record.status || 'Pending';
+        const paidDate = record.paid_date || '-';
+        
+        const printWindow = window.open('', '', 'width=800,height=600');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Salary Slip - ${name} - ${month}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 40px; }
+                        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
+                        .company-name { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+                        .title { font-size: 18px; color: #555; }
+                        .details-table, .salary-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+                        .details-table td, .salary-table td, .salary-table th { padding: 10px; border: 1px solid #ddd; }
+                        .salary-table th { background-color: #f5f5f5; text-align: left; }
+                        .total-row { font-weight: bold; background-color: #f9f9f9; }
+                        .footer { text-align: center; margin-top: 50px; font-size: 12px; color: #777; }
+                        .status { font-weight: bold; color: ${status === 'Paid' ? 'green' : 'orange'}; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <img src="${window.location.origin}/static/assets/img/logo.png" alt="Renvora Tech" style="height: 60px; margin-bottom: 10px; object-fit: contain;">
+                        <div class="company-name">Renvora Tech</div>
+                        <div class="title">Salary Slip - ${month}</div>
+                    </div>
+                    
+                    <table class="details-table">
+                        <tr>
+                            <td><strong>Employee Name:</strong> ${name}</td>
+                            <td><strong>Employee ID:</strong> ${empId}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Department:</strong> ${department}</td>
+                            <td><strong>Designation:</strong> ${designation}</td>
+                        </tr>
+                    </table>
+                    
+                    <table class="salary-table">
+                        <thead>
+                            <tr>
+                                <th>Description</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Basic Salary</td>
+                                <td>$${amount}</td>
+                            </tr>
+                            <tr class="total-row">
+                                <td>Net Payable</td>
+                                <td>$${amount}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <table class="details-table">
+                        <tr>
+                            <td><strong>Status:</strong> <span class="status">${status}</span></td>
+                            <td><strong>Paid Date:</strong> ${paidDate}</td>
+                        </tr>
+                    </table>
+                    
+                    <div class="footer">
+                        <p>This is a computer generated document. No signature is required.</p>
+                    </div>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 500);
+    }
+    </script>
 
     </main>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/assets/js/context.js?v={{ range(1, 100000) | random }}"></script>
     <script src="/static/assets/js/script.js?v={{ range(1, 100000) | random }}"></script>
 </body>
 </html>
