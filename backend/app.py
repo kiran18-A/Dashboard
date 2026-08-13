@@ -237,6 +237,7 @@ def change_password():
     data = request.json
     current_pw = str(data.get('current_password', ''))
     new_pw = str(data.get('new_password', ''))
+    new_username = str(data.get('new_username', '')).strip()
     
     users_df = read_excel_cached(f"users.xlsx")
     if users_df.empty:
@@ -251,8 +252,11 @@ def change_password():
     if str(user_row['password']) != current_pw:
         return jsonify({'success': False, 'message': 'Incorrect current password'})
         
-    # Update password
+    # Update password and optionally username
     users_df.loc[mask, 'password'] = new_pw
+    if new_username:
+        users_df.loc[mask, 'username'] = new_username
+        session['name'] = new_username
     save_excel_and_sync(users_df, f"users.xlsx")
     if f"users.xlsx" in _df_cache: del _df_cache[f"users.xlsx"]
     
@@ -924,8 +928,10 @@ def get_employees():
             pending_leaves = leaves_df[leaves_df['status'].astype(str).str.lower() == 'pending']
             
             def get_pending_leave(u_id):
-                if pd.isna(u_id): return None
-                emp_leaves = pending_leaves[pending_leaves['emp_id'].astype(str) == str(int(u_id))]
+                if pd.isna(u_id) or str(u_id).strip() == '': return None
+                try: clean_uid = str(int(float(u_id)))
+                except (ValueError, TypeError): clean_uid = str(u_id).strip()
+                emp_leaves = pending_leaves[pending_leaves['emp_id'].astype(str) == clean_uid]
                 if not emp_leaves.empty:
                     leave = emp_leaves.iloc[0].to_dict()
                     return leave
@@ -1644,9 +1650,6 @@ def delete_work(work_id):
     return jsonify({'success': True})
 
 
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
-
 @app.route('/api/context', methods=['GET'])
 def get_context():
     if 'user_id' not in session:
@@ -1700,4 +1703,14 @@ def get_context():
         except Exception as e:
             print(f'Error building context for user: {e}')
             
+    import numpy as np
+    for k, v in data.items():
+        if isinstance(v, (np.integer, np.floating)):
+            data[k] = v.item()
+            
     return jsonify(data)
+
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
+
