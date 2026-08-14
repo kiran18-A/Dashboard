@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 import pandas as pd
 import os
 from datetime import datetime, date
+from dateutil.relativedelta import relativedelta
 from werkzeug.utils import secure_filename
 from flask_mail import Mail, Message
 
@@ -1132,6 +1133,52 @@ def generate_salary_slip(emp_id):
         )
     except Exception as e:
         print(f"Error generating salary slip: {e}")
+        return "Internal Server Error", 500
+
+@app.route('/api/employees/<int:emp_id>/certificate', methods=['GET'])
+def generate_certificate(emp_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    try:
+        emp_df = read_excel_cached("employees.xlsx")
+        emp = emp_df[emp_df['id'] == emp_id]
+        if emp.empty:
+            return "Employee not found", 404
+        emp_data = emp.iloc[0].to_dict()
+        
+        # Get review text from query params
+        review_text = request.args.get('review', 'Has successfully completed their tenure with excellent performance.')
+        
+        # Calculate duration
+        joining_date_str = str(emp_data.get('joining_date', ''))
+        duration = "their tenure"
+        try:
+            if joining_date_str:
+                join_date = datetime.strptime(joining_date_str, '%Y-%m-%d')
+                diff = relativedelta(datetime.now(), join_date)
+                parts = []
+                if diff.years > 0: parts.append(f"{diff.years} year{'s' if diff.years > 1 else ''}")
+                if diff.months > 0: parts.append(f"{diff.months} month{'s' if diff.months > 1 else ''}")
+                if parts:
+                    duration = "a period of " + " and ".join(parts)
+        except Exception as e:
+            pass
+            
+        from flask import render_template_string
+        template_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'certificate.html'))
+        with open(template_path, 'r', encoding='utf-8') as f:
+            template_content = f.read()
+            
+        return render_template_string(
+            template_content, 
+            employee=emp_data, 
+            duration=duration,
+            review_text=review_text,
+            date_generated=datetime.now().strftime("%B %d, %Y")
+        )
+    except Exception as e:
+        print(f"Error generating certificate: {e}")
         return "Internal Server Error", 500
 
 @app.route('/api/employees/<int:emp_id>/details', methods=['GET'])
