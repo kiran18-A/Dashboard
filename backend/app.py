@@ -96,7 +96,8 @@ def init_excel():
         'expenses': pd.DataFrame(columns=['id', 'name', 'category', 'amount', 'date', 'status']),
         'leaves': pd.DataFrame(columns=['id', 'emp_id', 'start_date', 'end_date', 'reason', 'status']),
         'documents': pd.DataFrame(columns=['id', 'emp_id', 'doc_type', 'filename', 'upload_date']),
-        'incomes': pd.DataFrame(columns=['id', 'name', 'source', 'amount', 'date', 'status'])
+        'incomes': pd.DataFrame(columns=['id', 'name', 'source', 'amount', 'date', 'status']),
+        'holidays': pd.DataFrame(columns=['id', 'date', 'name', 'type'])
     }
     
     for name, df in files_to_create.items():
@@ -116,6 +117,28 @@ def setup():
     if not hasattr(app, 'setup_done'):
         init_excel()
         app.setup_done = True
+        
+    from datetime import timedelta
+    now = datetime.now()
+    if not hasattr(app, 'last_auto_checkout_check') or (now - app.last_auto_checkout_check).total_seconds() > 60:
+        att_df = read_excel_cached("attendance.xlsx")
+        if not att_df.empty:
+            changed = False
+            for idx, row in att_df.iterrows():
+                check_in_str = str(row.get('check_in', ''))
+                check_out_str = str(row.get('check_out', ''))
+                if check_in_str and check_in_str != 'nan' and (not check_out_str or check_out_str == 'nan'):
+                    try:
+                        ci_time = datetime.strptime(check_in_str, '%Y-%m-%d %H:%M:%S')
+                        if (now - ci_time).total_seconds() >= 10 * 3600:
+                            att_df.at[idx, 'check_out'] = (ci_time + timedelta(hours=10)).strftime('%Y-%m-%d %H:%M:%S')
+                            changed = True
+                    except ValueError:
+                        pass
+            if changed:
+                save_excel_and_sync(att_df, "attendance.xlsx")
+                if "attendance.xlsx" in _df_cache: del _df_cache["attendance.xlsx"]
+        app.last_auto_checkout_check = now
 
 @app.route('/')
 def index():
@@ -644,6 +667,31 @@ def get_employee_salary_history(emp_id):
     return jsonify({'success': True, 'history': emp_sal.to_dict('records')})
 
 
+@app.route('/api/leaves/<int:leave_id>', methods=['PUT'])
+def update_leave(leave_id):
+    if 'user_id' not in session or session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    try:
+        data = request.json
+        status = data.get('status')
+        if not status:
+            return jsonify({'success': False, 'message': 'Status is required'})
+            
+        df = read_excel_cached("leaves.xlsx")
+        idx = df.index[df['id'] == leave_id]
+        if len(idx) == 0:
+            return jsonify({'success': False, 'message': 'Leave request not found'})
+            
+        df.loc[idx, 'status'] = status
+        
+        save_excel_and_sync(df, "leaves.xlsx")
+        if "leaves.xlsx" in _df_cache: del _df_cache["leaves.xlsx"]
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Error updating leave: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/api/save_work', methods=['POST'])
 def save_daily_work():
     df = read_excel_cached(f"daily_work.xlsx")
@@ -1036,6 +1084,56 @@ def update_employee(emp_id):
             return jsonify({'success': True})
     return jsonify({'error': 'Failed'}), 500
 
+@app.route('/api/employees/<int:emp_id>/salary_slip', methods=['GET'])
+def generate_salary_slip(emp_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    try:
+        months_str = request.args.get('months', '1')
+        months = int(months_str)
+    except:
+        months = 1
+        
+    try:
+        emp_df = read_excel_cached("employees.xlsx")
+        emp = emp_df[emp_df['id'] == emp_id]
+        if emp.empty:
+            return "Employee not found", 404
+        emp_data = emp.iloc[0].to_dict()
+        
+        sal_df = read_excel_cached("salary.xlsx")
+        sal_df = sal_df[sal_df['employee_id'] == emp_data['employee_id']]
+        
+        records = sal_df.to_dict('records')
+        for r in records:
+            try:
+                r['date_obj'] = datetime.strptime(str(r.get('month', '')), "%B %Y")
+            except:
+                r['date_obj'] = datetime(1970, 1, 1)
+                
+        records.sort(key=lambda x: x['date_obj'], reverse=True)
+        filtered = records[:months]
+        
+        total_paid = sum(float(r['amount']) for r in filtered if str(r.get('amount', '')).replace('.','',1).isdigit())
+        
+        from flask import render_template_string
+        template_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'salary_slip.html'))
+        with open(template_path, 'r', encoding='utf-8') as f:
+            template_content = f.read()
+            
+        return render_template_string(
+            template_content, 
+            employee=emp_data, 
+            salary_records=filtered, 
+            months=months,
+            total_paid=total_paid,
+            date_generated=datetime.now().strftime("%d %B %Y")
+        )
+    except Exception as e:
+        print(f"Error generating salary slip: {e}")
+        return "Internal Server Error", 500
+
 @app.route('/api/employees/<int:emp_id>/details', methods=['GET'])
 def get_employee_details(emp_id):
     if 'user_id' not in session or session.get('role') != 'admin':
@@ -1059,6 +1157,41 @@ def get_employee_details(emp_id):
         att_df = read_excel_cached(f"attendance.xlsx").fillna('')
         att_data = att_df[att_df['emp_id'] == emp_data.get('employee_id')].to_dict('records')
         
+        # Calculate Working Days vs Days Worked for current month up to today
+        import calendar
+        from datetime import datetime
+        now_dt = datetime.now()
+        year, month = now_dt.year, now_dt.month
+        today = now_dt.day
+        current_month_str = now_dt.strftime('%Y-%m')
+        
+        holidays_df = read_excel_cached("holidays.xlsx")
+        holiday_dates = set()
+        working_day_exceptions = set()
+        
+        if not holidays_df.empty:
+            if 'type' not in holidays_df.columns:
+                holidays_df['type'] = 'Holiday'
+            holiday_dates = set(holidays_df[holidays_df['type'] == 'Holiday']['date'].astype(str).tolist())
+            working_day_exceptions = set(holidays_df[holidays_df['type'] == 'Working Day']['date'].astype(str).tolist())
+        
+        total_working_days_till_today = 0
+        # Calculate only up to TODAY
+        for day in range(1, today + 1):
+            date_str = f"{year}-{month:02d}-{day:02d}"
+            is_sunday = calendar.weekday(year, month, day) == 6
+            
+            if date_str in working_day_exceptions:
+                total_working_days_till_today += 1
+            elif not is_sunday and date_str not in holiday_dates:
+                total_working_days_till_today += 1
+        
+        # Count present/half day for this employee this month
+        my_att = att_df[(att_df['emp_id'] == emp_data.get('employee_id')) & (att_df['date'].astype(str).str.startswith(current_month_str))]
+        days_worked = len(my_att[my_att['status'].isin(['Present', 'Half Day'])])
+        
+        emp_data['days_worked_month'] = f"{days_worked} / {total_working_days_till_today}"
+        
         # Get work
         work_df = read_excel_cached(f"daily_work.xlsx").fillna('')
         work_data = work_df[work_df['emp_id'] == emp_data.get('employee_id')].to_dict('records')
@@ -1077,12 +1210,21 @@ def get_employee_details(emp_id):
             doc_df = read_excel_cached(f"documents.xlsx").fillna('')
             if not doc_df.empty:
                 doc_data = doc_df[doc_df['emp_id'].astype(str) == str(user_id)].to_dict('records')
+                
+        # Get leaves
+        leaves_data = []
+        if user_id is not None:
+            leaves_df = read_excel_cached(f"leaves.xlsx").fillna('')
+            if not leaves_df.empty:
+                emp_leaves = leaves_df[leaves_df['emp_id'].astype(str) == str(user_id)].to_dict('records')
+                leaves_data = emp_leaves
         
         return jsonify({
             'profile': emp_data,
             'attendance': att_data,
             'work': work_data,
-            'documents': doc_data
+            'documents': doc_data,
+            'leaves': leaves_data
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1311,6 +1453,96 @@ def delete_project(project_id):
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+@app.route('/api/holidays', methods=['GET'])
+def get_holidays():
+    if 'user_id' not in session:
+        return jsonify([])
+    df = read_excel_cached("holidays.xlsx").fillna('')
+    holidays = df.to_dict('records') if not df.empty else []
+    
+    # Also fetch approved leaves
+    try:
+        leaves_df = read_excel_cached("leaves.xlsx").fillna('')
+        users_df = read_excel_cached("users.xlsx").fillna('')
+        if not leaves_df.empty and 'status' in leaves_df.columns:
+            approved = leaves_df[leaves_df['status'] == 'Approved']
+            
+            # If not admin, only show the user's own leaves
+            if session.get('role') != 'admin':
+                approved = approved[approved['emp_id'].astype(str) == str(session['user_id'])]
+            
+            # Map emp_id to name
+            id_to_name = {}
+            if not users_df.empty and 'id' in users_df.columns and 'name' in users_df.columns:
+                id_to_name = dict(zip(users_df['id'].astype(str), users_df['name']))
+                
+            for _, row in approved.iterrows():
+                emp_name = id_to_name.get(str(row['emp_id']), f"Emp #{row['emp_id']}")
+                # We format leaves so frontend can render them seamlessly
+                from datetime import datetime, timedelta
+                try:
+                    start_dt = datetime.strptime(str(row['start_date']), '%Y-%m-%d')
+                    end_dt = datetime.strptime(str(row['end_date']), '%Y-%m-%d')
+                    # FullCalendar end date is exclusive, so add 1 day
+                    end_dt_exclusive = end_dt + timedelta(days=1)
+                    end_str = end_dt_exclusive.strftime('%Y-%m-%d')
+                except:
+                    end_str = row['end_date']
+                    
+                # For non-admins viewing their own leaves, "My Leave" is a better title
+                leave_title = "My Leave" if session.get('role') != 'admin' else f"{emp_name} - On Leave"
+                    
+                holidays.append({
+                    'id': f"leave_{row['id']}",
+                    'date': row['start_date'],
+                    'end': end_str,
+                    'name': leave_title,
+                    'type': 'Leave'
+                })
+    except Exception as e:
+        print(f"Error appending leaves to holidays: {e}")
+        
+    return jsonify(holidays)
+
+@app.route('/api/holidays', methods=['POST'])
+def add_holiday():
+    if 'user_id' not in session or session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 401
+    data = request.json
+    try:
+        df = read_excel_cached("holidays.xlsx")
+        
+        # Remove any existing entry for this date to avoid duplicates/conflicts
+        df = df[df['date'] != data.get('date')]
+        
+        new_id = int(df['id'].max()) + 1 if not df.empty else 1
+        new_holiday = {
+            'id': new_id,
+            'date': data.get('date'),
+            'name': data.get('name', ''),
+            'type': data.get('type', 'Holiday')
+        }
+        df = pd.concat([df, pd.DataFrame([new_holiday])], ignore_index=True)
+        save_excel_and_sync(df, "holidays.xlsx")
+        if "holidays.xlsx" in _df_cache: del _df_cache["holidays.xlsx"]
+        return jsonify({'success': True, 'holiday': new_holiday})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/holidays/<int:holiday_id>', methods=['DELETE'])
+def delete_holiday(holiday_id):
+    if 'user_id' not in session or session.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 401
+    try:
+        df = read_excel_cached("holidays.xlsx")
+        if holiday_id not in df['id'].values:
+            return jsonify({'success': False, 'error': 'Holiday not found'}), 404
+        df = df[df['id'] != holiday_id]
+        save_excel_and_sync(df, "holidays.xlsx")
+        if "holidays.xlsx" in _df_cache: del _df_cache["holidays.xlsx"]
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/daily_work', methods=['GET'])
@@ -1695,9 +1927,35 @@ def get_context():
             
             att_df = read_excel_cached(f"attendance.xlsx").fillna('')
             current_month = datetime.now().strftime('%Y-%m')
-            my_att = att_df[(att_df['emp_id'] == str(session.get('user_id'))) | (att_df['emp_id'] == session.get('user_id'))]
+            my_att = att_df[(att_df['user_id'] == str(session.get('user_id'))) | (att_df['user_id'] == session.get('user_id'))]
             my_att = my_att[my_att['date'].astype(str).str.startswith(current_month)]
-            data['days_worked_month'] = len(my_att[my_att['status'].isin(['Present', 'Half Day'])])
+            
+            import calendar
+            now_dt = datetime.now()
+            year, month = now_dt.year, now_dt.month
+            
+            holidays_df = read_excel_cached("holidays.xlsx")
+            holiday_dates = set()
+            working_day_exceptions = set()
+            
+            if not holidays_df.empty:
+                if 'type' not in holidays_df.columns:
+                    holidays_df['type'] = 'Holiday'
+                holiday_dates = set(holidays_df[holidays_df['type'] == 'Holiday']['date'].astype(str).tolist())
+                working_day_exceptions = set(holidays_df[holidays_df['type'] == 'Working Day']['date'].astype(str).tolist())
+            
+            total_working_days = 0
+            for day in range(1, calendar.monthrange(year, month)[1] + 1):
+                date_str = f"{year}-{month:02d}-{day:02d}"
+                is_sunday = calendar.weekday(year, month, day) == 6
+                
+                if date_str in working_day_exceptions:
+                    total_working_days += 1
+                elif not is_sunday and date_str not in holiday_dates:
+                    total_working_days += 1
+            
+            days_worked = len(my_att[my_att['status'].isin(['Present', 'Half Day'])])
+            data['days_worked_month'] = f"{days_worked} / {total_working_days}"
             
         except Exception as e:
             print(f'Error building context for user: {e}')
