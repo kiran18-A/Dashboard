@@ -2901,3 +2901,29 @@ document.addEventListener('DOMContentLoaded', () => {
     style.innerHTML = '.fc .fc-toolbar-title { color: #212529 !important; font-weight: bold; } .fc-daygrid-day-number { color: #0d6efd !important; text-decoration: none; }';
     document.head.appendChild(style);
 });
+
+// Certificate Generation
+window.openCertificateModal = function() {
+    if (!window.currentViewEmployeeId) {
+        alert("Please select an employee first.");
+        return;
+    }
+    const modal = new bootstrap.Modal(document.getElementById('certificateModal'));
+    document.getElementById('certReviewText').value = '';
+    modal.show();
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const certForm = document.getElementById('certificateForm');
+    if (certForm) {
+        certForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (!window.currentViewEmployeeId) return;
+            const reviewText = document.getElementById('certReviewText').value;
+            const encodedReview = encodeURIComponent(reviewText);
+            const url = `/api/employees/${window.currentViewEmployeeId}/certificate?review=${encodedReview}`;
+            window.open(url, '_blank');
+            bootstrap.Modal.getInstance(document.getElementById('certificateModal')).hide();
+        });
+    }
+});
