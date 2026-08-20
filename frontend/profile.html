@@ -13,7 +13,7 @@
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="employee-dashboard.html" class="sidebar-brand">
-                <img src="/static/assets/img/logo.png" alt="Renvora Tech Logo" style="height: 48px; width: auto; object-fit: contain;"> <span style="margin-left: 8px; font-weight: 700;">Renvora Tech</span>
+                <img src="/static/assets/img/logo.png" alt="Renvora Tech Logo" style="height: 48px; width: auto; object-fit: contain;" class="org-logo-display"> <span style="margin-left: 8px; font-weight: 700;"><span class="org-name-display">Renvora Tech</span></span>
             </a>
         </div>
         <div class="sidebar-menu py-3">
@@ -70,6 +70,19 @@
                 </div>
                 <h3 class="fw-bold"><span class="user-name-display"></span></h3>
                 <p class="text-primary fw-semibold mb-0"><span id="ctxDesignation"></span> (<span id="ctxEmpId"></span>)</p>
+            </div>
+
+            <!-- Organization Logo Upload (Admin Only) -->
+            <div id="adminOrgLogoSection" class="glass-card p-4 text-center mb-4 position-relative" style="display: none;">
+                <h5 class="fw-bold mb-3">Organization Logo</h5>
+                <div class="position-relative d-inline-block bg-white p-2 rounded shadow-sm">
+                    <img src="" class="org-logo-display mb-3 shadow" style="object-fit: contain; width: 120px; height: 120px; border-radius: 8px;">
+                    
+                    <label for="orgLogoInput" class="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle p-2 shadow cursor-pointer" style="cursor: pointer; transform: translate(10px, -10px);" title="Upload Logo">
+                        <i class="fas fa-upload"></i>
+                    </label>
+                    <input type="file" id="orgLogoInput" class="d-none" accept="image/*">
+                </div>
             </div>
 
             <div class="row g-4">
@@ -325,7 +338,7 @@
                 <body>
                     <div class="header">
                         <img src="${window.location.origin}/static/assets/img/logo.png" alt="Renvora Tech" style="height: 60px; margin-bottom: 10px; object-fit: contain;">
-                        <div class="company-name">Renvora Tech</div>
+                        <div class="company-name"><span class="org-name-display">Renvora Tech</span></div>
                         <div class="title">Salary Slip - ${month}</div>
                     </div>
                     

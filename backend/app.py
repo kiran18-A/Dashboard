@@ -38,19 +38,31 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
 
+def get_org_id():
+    from flask import session, has_request_context
+    if has_request_context() and session and 'org_id' in session:
+        return session['org_id']
+    return 'default'
+
 def save_excel_and_sync(df, db_name):
-    file_path = os.path.join('local_storage', db_name)
+    org_id = get_org_id()
+    file_path = os.path.join('local_storage', org_id, db_name)
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     df.to_excel(file_path, index=False, engine='openpyxl')
-    print(f"Saved {db_name} to local storage.")
+    print(f"Saved {db_name} to local storage for org {org_id}.")
+    cache_key = f"{org_id}_{db_name}"
+    if cache_key in _df_cache:
+        del _df_cache[cache_key]
 
 _df_cache = {}
 
 def read_excel_cached(db_name):
-    if db_name in _df_cache:
-        return _df_cache[db_name]
+    org_id = get_org_id()
+    cache_key = f"{org_id}_{db_name}"
+    if cache_key in _df_cache:
+        return _df_cache[cache_key]
     
-    file_path = os.path.join('local_storage', db_name)
+    file_path = os.path.join('local_storage', org_id, db_name)
     import pandas as pd
     
     if os.path.exists(file_path):
@@ -61,7 +73,7 @@ def read_excel_cached(db_name):
     else:
         df = pd.DataFrame()
         
-    _df_cache[db_name] = df
+    _df_cache[cache_key] = df
     return df
 
 def format_phone_number(val):
@@ -157,8 +169,22 @@ def serve_page(page):
 @app.route('/api/login', methods=['POST'])
 def api_login():
     data = request.json
-    username = data.get('username')
-    password = data.get('password')
+    username = str(data.get('username', '')).strip()
+    password = str(data.get('password', ''))
+    
+    import json, os
+    global_usernames_path = os.path.join('local_storage', 'global_usernames.json')
+    org_id = 'default'
+    if os.path.exists(global_usernames_path):
+        try:
+            with open(global_usernames_path, 'r') as f:
+                gun = json.load(f)
+                if username in gun:
+                    org_id = gun[username]
+        except Exception:
+            pass
+            
+    session['org_id'] = org_id
     
     users_df = read_excel_cached(f"users.xlsx")
     # Filter using string conversion to ensure types match
@@ -173,13 +199,96 @@ def api_login():
                 emp = emp_df[emp_df['name'] == str(user_row['name'])]
                 if not emp.empty:
                     if str(emp.iloc[0].get('status', 'Active')).lower() == 'inactive':
+                        session.clear()
                         return jsonify({'success': False, 'message': 'Your account is inactive. Please contact the administrator.'}), 403
                         
         session['user_id'] = int(user_row['id'])
         session['role'] = str(user_row['role'])
         session['name'] = str(user_row['name'])
         return jsonify({'success': True, 'role': str(user_row['role'])})
+    
+    session.clear()
     return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
+
+@app.route('/api/create_org', methods=['POST'])
+def api_create_org():
+    data = request.json
+    org_name = data.get('org_name', '').strip()
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+    
+    if not org_name or not username or not password:
+        return jsonify({'success': False, 'message': 'All fields are required.'}), 400
+        
+    import json, os, uuid
+    global_usernames_path = os.path.join('local_storage', 'global_usernames.json')
+    organizations_path = os.path.join('local_storage', 'organizations.json')
+    
+    gun = {}
+    if os.path.exists(global_usernames_path):
+        try:
+            with open(global_usernames_path, 'r') as f:
+                gun = json.load(f)
+        except Exception:
+            pass
+            
+    if username in gun:
+        return jsonify({'success': False, 'message': 'Username is already taken. Please choose another.'}), 400
+        
+    org_id = 'org_' + str(uuid.uuid4().hex[:8])
+    gun[username] = org_id
+    
+    orgs = {}
+    if os.path.exists(organizations_path):
+        try:
+            with open(organizations_path, 'r') as f:
+                orgs = json.load(f)
+        except Exception:
+            pass
+            
+    orgs[org_id] = {'name': org_name}
+    
+    # Save registries
+    with open(global_usernames_path, 'w') as f:
+        json.dump(gun, f, indent=4)
+    with open(organizations_path, 'w') as f:
+        json.dump(orgs, f, indent=4)
+        
+    # Setup database
+    session['org_id'] = org_id
+    import pandas as pd
+    
+    files_to_create = {
+        'users': pd.DataFrame({
+            'id': [1],
+            'username': [username],
+            'password': [password],
+            'role': ['admin'],
+            'name': ['Admin User']
+        }),
+        'employees': pd.DataFrame(columns=[
+            'id', 'name', 'employee_id', 'department', 'designation', 
+            'email', 'phone', 'joining_date', 'status', 'salary'
+        ]),
+        'attendance': pd.DataFrame(columns=['id', 'user_id', 'emp_id', 'date', 'check_in', 'check_out', 'status']),
+        'daily_work': pd.DataFrame(columns=['id', 'emp_id', 'date', 'time', 'description', 'hours', 'status']),
+        'projects': pd.DataFrame(columns=['id', 'name', 'client', 'team', 'status', 'deadline', 'costing', 'start_date']),
+        'clients': pd.DataFrame(columns=['id', 'name', 'company', 'email']),
+        'salary': pd.DataFrame(columns=['id', 'employee_id', 'amount', 'month', 'status', 'paid_date']),
+        'expenses': pd.DataFrame(columns=['id', 'name', 'category', 'amount', 'date', 'status']),
+        'leaves': pd.DataFrame(columns=['id', 'emp_id', 'start_date', 'end_date', 'reason', 'status']),
+        'documents': pd.DataFrame(columns=['id', 'emp_id', 'doc_type', 'filename', 'upload_date']),
+        'incomes': pd.DataFrame(columns=['id', 'name', 'source', 'amount', 'date', 'status']),
+    }
+    
+    for db_name, df in files_to_create.items():
+        save_excel_and_sync(df, f"{db_name}.xlsx")
+        
+    session['user_id'] = 1
+    session['role'] = 'admin'
+    session['name'] = 'Admin User'
+    
+    return jsonify({'success': True, 'role': 'admin'})
 
 @app.route('/api/checkin', methods=['POST'])
 def api_checkin():
@@ -1037,19 +1146,35 @@ def add_employee():
         if f"employees.xlsx" in _df_cache: del _df_cache[f"employees.xlsx"]
         
         if data.get('username') and data.get('password'):
+            username = str(data.get('username')).strip()
+            org_id = get_org_id()
+            import json, os
+            global_usernames_path = os.path.join('local_storage', 'global_usernames.json')
+            gun = {}
+            if os.path.exists(global_usernames_path):
+                try:
+                    with open(global_usernames_path, 'r') as f:
+                        gun = json.load(f)
+                except Exception:
+                    pass
+            if username in gun and gun[username] != org_id:
+                return jsonify({'error': 'Username already taken.'}), 400
+            gun[username] = org_id
+            with open(global_usernames_path, 'w') as f:
+                json.dump(gun, f, indent=4)
+                
             users_df = read_excel_cached(f"users.xlsx")
             user_max = users_df['id'].max() if not users_df.empty else 0
             user_new_id = int(user_max) + 1 if pd.notna(user_max) else 1
             new_user = pd.DataFrame([{
                 'id': user_new_id,
-                'username': data.get('username'),
+                'username': username,
                 'password': data.get('password'),
                 'role': 'employee',
                 'name': data.get('name', '')
             }])
             users_df = pd.concat([users_df, new_user], ignore_index=True)
             save_excel_and_sync(users_df, f"users.xlsx")
-            if f"users.xlsx" in _df_cache: del _df_cache[f"users.xlsx"]
             
         return jsonify({'success': True})
     except Exception as e:
@@ -1778,6 +1903,49 @@ def api_remove_profile_photo():
             
     return jsonify({'success': False, 'message': 'Failed to remove photo'}), 500
 
+@app.route('/api/upload_org_logo', methods=['POST'])
+def api_upload_org_logo():
+    user_id = session.get('user_id')
+    role = session.get('role')
+    if not user_id or role != 'admin':
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    
+    if 'photo' not in request.files:
+        return jsonify({'success': False, 'message': 'No file part'}), 400
+        
+    file = request.files['photo']
+    if file.filename == '':
+        return jsonify({'success': False, 'message': 'No selected file'}), 400
+        
+    if file:
+        org_id = get_org_id()
+        filename = secure_filename(f"orglogo_{org_id}_{file.filename}")
+        
+        # Upload stream to Google Drive directly
+        print(f"Uploading {filename} to Google Drive (in-memory)...")
+        drive_file_id = drive_sync.upload_stream(filename, file.stream, is_public=True, mimetype=file.content_type)
+        photo_url = f"https://drive.google.com/uc?id={drive_file_id}" if drive_file_id else None
+        
+        if not photo_url:
+            return jsonify({'success': False, 'message': 'Google Drive upload failed'}), 500
+        
+        import json, os
+        organizations_path = os.path.join('local_storage', 'organizations.json')
+        orgs = {}
+        if os.path.exists(organizations_path):
+            try:
+                with open(organizations_path, 'r') as f:
+                    orgs = json.load(f)
+            except: pass
+        if org_id not in orgs:
+            orgs[org_id] = {}
+        orgs[org_id]['logo'] = photo_url
+        with open(organizations_path, 'w') as f:
+            json.dump(orgs, f, indent=4)
+            
+        return jsonify({'success': True, 'photo_url': photo_url})
+                
+    return jsonify({'success': False, 'message': 'Upload failed'}), 500
 
 @app.route('/api/upload-document', methods=['POST'])
 def api_upload_document():
@@ -1944,10 +2112,27 @@ def get_context():
     if 'user_id' not in session:
         return jsonify({'success': False}), 401
     
+    org_id = session.get('org_id', 'default')
+    org_name = 'Renvora Tech'
+    org_logo = '/static/assets/img/logo.png'
+    import json, os
+    organizations_path = os.path.join('local_storage', 'organizations.json')
+    if os.path.exists(organizations_path):
+        try:
+            with open(organizations_path, 'r') as f:
+                orgs = json.load(f)
+                if org_id in orgs:
+                    org_name = orgs[org_id].get('name', 'Renvora Tech')
+                    org_logo = orgs[org_id].get('logo', org_logo)
+        except:
+            pass
+            
     # Base user data
     data = {
         'name': session.get('name'),
         'role': session.get('role'),
+        'org_name': org_name,
+        'org_logo': org_logo
     }
     
     # Try to get profile photo from users table

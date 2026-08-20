@@ -307,3 +307,67 @@ thead th {
 .fc-day-today {
     background-color: rgba(37, 99, 235, 0.05) !important;
 }
+
+/* Kanban Board (Monday.com style) */
+.kanban-board {
+    min-height: 500px;
+}
+.kanban-column {
+    width: 320px;
+    background-color: rgba(243, 244, 246, 0.5);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-color);
+}
+[data-theme="dark"] .kanban-column {
+    background-color: rgba(31, 41, 55, 0.3);
+}
+.kanban-header {
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+}
+.kanban-cards-container {
+    flex-grow: 1;
+    min-height: 100px;
+}
+.kanban-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    cursor: grab;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+}
+.kanban-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+.kanban-card:active {
+    cursor: grabbing;
+}
+.kanban-card.dragging {
+    opacity: 0.5;
+    box-shadow: var(--shadow-lg);
+}
+.kanban-card-title {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+.kanban-card-client {
+    font-size: 0.85rem;
+    color: var(--text-color);
+    opacity: 0.8;
+}
+
+/* FullCalendar pill styles for projects */
+.fc-event-project {
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 2px 6px !important;
+    font-weight: 600 !important;
+    color: #fff !important;
+}

@@ -90,6 +90,44 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+    // Create Org Form logic
+    const createOrgForm = document.getElementById('createOrgForm');
+    if (createOrgForm) {
+        createOrgForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const orgName = document.getElementById('orgName').value;
+            const username = document.getElementById('orgUsername').value;
+            const password = document.getElementById('orgPassword').value;
+            const submitBtn = createOrgForm.querySelector('button[type="submit"]');
+            const originalContent = submitBtn.innerHTML;
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Creating...';
+            
+            try {
+                const response = await fetch('/api/create_org', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ org_name: orgName, username, password })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Organization created successfully! Logging you in...');
+                    window.location.href = 'admin-dashboard.html';
+                } else {
+                    alert(data.message || 'Creation failed');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalContent;
+                }
+            } catch (err) {
+                alert('Error connecting to server');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalContent;
+            }
+        });
+    }
 
     // Attendance Logic (Employee Dashboard)
     const checkInBtn = document.getElementById('checkInBtn');
@@ -1295,8 +1333,149 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
             });
+
+            // Build Board and Calendar
+            const onboardingContainer = document.getElementById('kanban-onboarding');
+            const runningContainer = document.getElementById('kanban-running');
+            const testingContainer = document.getElementById('kanban-testing');
+            const completedContainer = document.getElementById('kanban-completed');
+            
+            if (onboardingContainer && runningContainer && testingContainer && completedContainer) {
+                onboardingContainer.innerHTML = '';
+                runningContainer.innerHTML = '';
+                testingContainer.innerHTML = '';
+                completedContainer.innerHTML = '';
+                
+                let bCount = { Onboarding: 0, Running: 0, Testing: 0, Completed: 0 };
+                
+                allProjectsData.forEach(proj => {
+                    const status = proj.status || 'Running';
+                    if (bCount[status] !== undefined) bCount[status]++;
+                    
+                    const card = document.createElement('div');
+                    card.className = 'kanban-card';
+                    card.draggable = true;
+                    card.dataset.id = proj.id;
+                    card.innerHTML = `
+                        <div class="kanban-card-title text-primary">${proj.name || 'Project'}</div>
+                        <div class="kanban-card-client mb-2"><i class="fas fa-building me-1"></i> ${proj.client || '--'}</div>
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <span class="badge bg-light text-dark shadow-sm border"><i class="fas fa-calendar-alt me-1"></i> ${proj.deadline || '--'}</span>
+                        </div>
+                    `;
+                    
+                    card.addEventListener('dragstart', (e) => {
+                        e.dataTransfer.setData('text/plain', proj.id);
+                        card.classList.add('dragging');
+                    });
+                    
+                    card.addEventListener('dragend', () => {
+                        card.classList.remove('dragging');
+                    });
+                    
+                    if (status === 'Onboarding') onboardingContainer.appendChild(card);
+                    else if (status === 'Running') runningContainer.appendChild(card);
+                    else if (status === 'Testing') testingContainer.appendChild(card);
+                    else if (status === 'Completed') completedContainer.appendChild(card);
+                });
+                
+                document.querySelector('.kanban-column[data-status="Onboarding"] .kanban-count').innerText = bCount['Onboarding'];
+                document.querySelector('.kanban-column[data-status="Running"] .kanban-count').innerText = bCount['Running'];
+                document.querySelector('.kanban-column[data-status="Testing"] .kanban-count').innerText = bCount['Testing'];
+                document.querySelector('.kanban-column[data-status="Completed"] .kanban-count').innerText = bCount['Completed'];
+            }
+            
+            // Render Calendar
+            const calendarEl = document.getElementById('projectsCalendar');
+            if (calendarEl && window.projectsCalendar) {
+                const events = allProjectsData.filter(p => p.start_date || p.deadline).map(p => ({
+                    id: p.id,
+                    title: p.name,
+                    start: p.start_date || p.deadline,
+                    end: p.deadline || p.start_date,
+                    backgroundColor: p.status === 'Completed' ? '#0ea5e9' : (p.status === 'Running' ? '#22c55e' : (p.status === 'Onboarding' ? '#f59e0b' : '#6b7280')),
+                    classNames: ['fc-event-project']
+                }));
+                window.projectsCalendar.removeAllEvents();
+                window.projectsCalendar.addEventSource(events);
+            }
         }
         
+        // Initialize Calendar object if not exists
+        const calendarEl = document.getElementById('projectsCalendar');
+        if (calendarEl && !window.projectsCalendar) {
+            window.projectsCalendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,listMonth'
+                },
+                height: 600,
+            });
+            // Don't render yet until tab is shown, to prevent sizing issues
+        }
+
+        // View Switcher logic
+        const viewSwitcherInputs = document.querySelectorAll('input[name="viewSwitch"]');
+        viewSwitcherInputs.forEach(input => {
+            input.addEventListener('change', (e) => {
+                const val = e.target.value;
+                document.getElementById('projectsListView').classList.toggle('d-none', val !== 'list');
+                document.getElementById('projectsBoardView').classList.toggle('d-none', val !== 'board');
+                document.getElementById('projectsCalendarView').classList.toggle('d-none', val !== 'calendar');
+                
+                if (val === 'calendar' && window.projectsCalendar) {
+                    setTimeout(() => window.projectsCalendar.render(), 100); // give it time to display block before rendering
+                }
+            });
+        });
+
+        // Kanban Drag and Drop Logic
+        const kanbanColumns = document.querySelectorAll('.kanban-column');
+        kanbanColumns.forEach(column => {
+            column.addEventListener('dragover', e => {
+                e.preventDefault();
+                const container = column.querySelector('.kanban-cards-container');
+                const draggingCard = document.querySelector('.dragging');
+                if (draggingCard && container) {
+                    container.appendChild(draggingCard);
+                }
+            });
+            
+            column.addEventListener('drop', async e => {
+                e.preventDefault();
+                const draggingCard = document.querySelector('.dragging');
+                if (!draggingCard) return;
+                
+                const projId = draggingCard.dataset.id;
+                const newStatus = column.dataset.status;
+                
+                // Find project and update status
+                const proj = allProjectsData.find(p => p.id == projId);
+                if (proj && proj.status !== newStatus) {
+                    proj.status = newStatus;
+                    try {
+                        const res = await fetch('/api/edit_project/' + projId, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(proj)
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            loadProjects(); // Reload everything to update all views correctly
+                        } else {
+                            alert("Failed to update project status");
+                            loadProjects(); // Revert
+                        }
+                    } catch (err) {
+                        alert("Error updating project status");
+                        loadProjects();
+                    }
+                }
+            });
+        });
+
         loadProjects();
         
         const addProjectForm = document.getElementById('addProjectForm');
@@ -2331,6 +2510,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('An error occurred during upload');
             }
         });
+    }
+
+    const orgLogoInput = document.getElementById('orgLogoInput');
+    if (orgLogoInput) {
+        orgLogoInput.addEventListener('change', async (e) => {
+            if (!e.target.files || e.target.files.length === 0) return;
+            const file = e.target.files[0];
+            const formData = new FormData();
+            formData.append('photo', file);
+            
+            try {
+                const res = await fetch('/api/upload_org_logo', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to upload logo');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('An error occurred during upload');
+            }
+        });
+    }
+});
+
+document.addEventListener('contextLoaded', (e) => {
+    if (e.detail && e.detail.role === 'admin') {
+        const orgLogoSection = document.getElementById('adminOrgLogoSection');
+        if (orgLogoSection) orgLogoSection.style.display = 'block';
     }
 });
 

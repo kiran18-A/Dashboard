@@ -275,11 +275,11 @@
         <div class="certificate-outer-border">
             <div class="certificate-inner-border">
                 
-                <img src="/static/assets/img/logo.png" alt="Watermark" class="watermark">
+                <img src="/static/assets/img/logo.png" alt="Watermark" class="watermark" class="org-logo-display">
                 
                 <div class="content">
                     <div class="header">
-                        <img src="/static/assets/img/logo.png" alt="Company Logo" class="logo">
+                        <img src="/static/assets/img/logo.png" alt="Company Logo" class="logo" class="org-logo-display">
                         <div class="certificate-title">CERTIFICATE</div>
                         <div class="certificate-subtitle">Of Completion & Excellence</div>
                     </div>
@@ -291,7 +291,7 @@
                         
                         <div class="body-text">
                             For successfully completing {{ duration }} as <strong>{{ employee.designation if employee.designation else 'an Employee' }}</strong> 
-                            at Renvora Tech, demonstrating exceptional dedication and professional excellence.
+                            at <span class="org-name-display">Renvora Tech</span>, demonstrating exceptional dedication and professional excellence.
                         </div>
                         
                         {% if review_text %}

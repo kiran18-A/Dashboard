@@ -59,7 +59,7 @@
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="admin-dashboard.html" class="sidebar-brand">
-                <img src="/static/assets/img/logo.png" alt="Renvora Tech Logo" style="height: 48px; width: auto; object-fit: contain;"> <span style="margin-left: 8px; font-weight: 700;">Renvora Tech</span>
+                <img src="/static/assets/img/logo.png" alt="Renvora Tech Logo" style="height: 48px; width: auto; object-fit: contain;" class="org-logo-display"> <span style="margin-left: 8px; font-weight: 700;"><span class="org-name-display">Renvora Tech</span></span>
             </a>
         </div>
         <div class="sidebar-menu py-3">
@@ -98,11 +98,11 @@
                 </button>
                 <div class="dropdown">
                     <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        <img src="/static/assets/img/logo.png" alt="Profile" class="profile-img-sm me-2">
+                        <img src="/static/assets/img/logo.png" alt="Profile" class="profile-img-sm me-2" class="org-logo-display">
                         <span class="d-none d-md-inline fw-semibold" style="color: var(--text-color);"><span class=\"user-name-display\"></span></span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="profileDropdown">
-                        <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profile</a></li>
+                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#orgSettingsModal"><i class="fas fa-building me-2"></i>Organization Settings</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item text-danger" href="login.html"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                     </ul>
@@ -275,6 +275,30 @@
                             <button type="submit" class="btn btn-primary">Save Changes</button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Organization Settings Modal -->
+    <div class="modal fade" id="orgSettingsModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold text-dark">Organization Settings</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center p-4">
+                    <h6 class="fw-bold mb-3">Organization Logo</h6>
+                    <div class="position-relative d-inline-block bg-light p-2 rounded shadow-sm mb-3">
+                        <img src="" class="org-logo-display shadow" style="object-fit: contain; width: 120px; height: 120px; border-radius: 8px;">
+                        
+                        <label for="orgLogoInput" class="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle p-2 shadow cursor-pointer" style="cursor: pointer; transform: translate(10px, -10px);" title="Upload Logo">
+                            <i class="fas fa-upload"></i>
+                        </label>
+                        <input type="file" id="orgLogoInput" class="d-none" accept="image/*">
+                    </div>
+                    <p class="text-muted small">Upload a square image for best results.</p>
                 </div>
             </div>
         </div>

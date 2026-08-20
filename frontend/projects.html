@@ -54,7 +54,7 @@
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="admin-dashboard.html" class="sidebar-brand">
-                <img src="/static/assets/img/logo.png" alt="Renvora Tech Logo" style="height: 48px; width: auto; object-fit: contain;"> <span style="margin-left: 8px; font-weight: 700;">Renvora Tech</span>
+                <img src="/static/assets/img/logo.png" alt="Renvora Tech Logo" style="height: 48px; width: auto; object-fit: contain;" class="org-logo-display"> <span style="margin-left: 8px; font-weight: 700;"><span class="org-name-display">Renvora Tech</span></span>
             </a>
         </div>
         <div class="sidebar-menu py-3">
@@ -90,7 +90,7 @@
                 </button>
                 <div class="dropdown">
                     <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        <img src="/static/assets/img/logo.png" alt="Profile" class="profile-img-sm me-2">
+                        <img src="/static/assets/img/logo.png" alt="Profile" class="profile-img-sm me-2" class="org-logo-display">
                         <span class="d-none d-md-inline fw-semibold" style="color: var(--text-color);">Admin User</span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="profileDropdown">
@@ -113,30 +113,82 @@
                 <div class="col-12 col-md-auto col-lg"><div class="glass-card p-4 text-center"><h3 class="fw-bold text-warning mb-1" id="statPendingProjects">0</h3><p class="text-muted mb-0 fw-semibold">Onboarding</p></div></div>
             </div>
 
-            <div class="glass-card p-4">
-                <div class="d-flex justify-content-between mb-4">
-                    <h5 class="fw-bold mb-0">Project Directory</h5>
-                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addProjectModal"><i class="fas fa-plus me-1"></i> New Project</button>
+            <div class="glass-card p-4 mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <h5 class="fw-bold mb-0">Projects Overview</h5>
+                        <div class="btn-group shadow-sm" role="group" id="projectViewSwitcher">
+                            <input type="radio" class="btn-check" name="viewSwitch" id="viewList" value="list" checked>
+                            <label class="btn btn-outline-primary px-3" for="viewList"><i class="fas fa-list me-1"></i> List</label>
+
+                            <input type="radio" class="btn-check" name="viewSwitch" id="viewBoard" value="board">
+                            <label class="btn btn-outline-primary px-3" for="viewBoard"><i class="fas fa-columns me-1"></i> Board</label>
+
+                            <input type="radio" class="btn-check" name="viewSwitch" id="viewCalendar" value="calendar">
+                            <label class="btn btn-outline-primary px-3" for="viewCalendar"><i class="fas fa-calendar-alt me-1"></i> Calendar</label>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#addProjectModal"><i class="fas fa-plus me-1"></i> New Project</button>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead>
-                            <tr>
-                                <th>Project Name</th>
-                                <th>Client</th>
-                                <th>Team</th>
-                                <th>Start Date</th>
-                                <th>Costing</th>
-                                <th>Deadline</th>
-                                <th>Status</th>
-                                <th class="text-end">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="projectTableBody">
-                            <!-- Populated dynamically -->
-                        </tbody>
-                    </table>
+                
+                <!-- List View -->
+                <div id="projectsListView" class="project-view-container active-view">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Project Name</th>
+                                    <th>Client</th>
+                                    <th>Team</th>
+                                    <th>Start Date</th>
+                                    <th>Costing</th>
+                                    <th>Deadline</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="projectTableBody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+
+                <!-- Board View -->
+                <div id="projectsBoardView" class="project-view-container d-none">
+                    <div class="kanban-board d-flex gap-4 overflow-auto pb-3">
+                        <div class="kanban-column flex-shrink-0" data-status="Onboarding">
+                            <div class="kanban-header border-warning" style="border-top: 4px solid var(--bs-warning);">
+                                <h6 class="fw-bold mb-0">Onboarding <span class="badge bg-light text-dark ms-2 rounded-pill shadow-sm kanban-count">0</span></h6>
+                            </div>
+                            <div class="kanban-cards-container" id="kanban-onboarding"></div>
+                        </div>
+                        <div class="kanban-column flex-shrink-0" data-status="Running">
+                            <div class="kanban-header border-success" style="border-top: 4px solid var(--bs-success);">
+                                <h6 class="fw-bold mb-0">Running <span class="badge bg-light text-dark ms-2 rounded-pill shadow-sm kanban-count">0</span></h6>
+                            </div>
+                            <div class="kanban-cards-container" id="kanban-running"></div>
+                        </div>
+                        <div class="kanban-column flex-shrink-0" data-status="Testing">
+                            <div class="kanban-header border-secondary" style="border-top: 4px solid var(--bs-secondary);">
+                                <h6 class="fw-bold mb-0">Testing <span class="badge bg-light text-dark ms-2 rounded-pill shadow-sm kanban-count">0</span></h6>
+                            </div>
+                            <div class="kanban-cards-container" id="kanban-testing"></div>
+                        </div>
+                        <div class="kanban-column flex-shrink-0" data-status="Completed">
+                            <div class="kanban-header border-info" style="border-top: 4px solid var(--bs-info);">
+                                <h6 class="fw-bold mb-0">Completed <span class="badge bg-light text-dark ms-2 rounded-pill shadow-sm kanban-count">0</span></h6>
+                            </div>
+                            <div class="kanban-cards-container" id="kanban-completed"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Calendar View -->
+                <div id="projectsCalendarView" class="project-view-container d-none">
+                    <div id="projectsCalendar" style="min-height: 600px;"></div>
+                </div>
+
             </div>
         </div>
     </main>

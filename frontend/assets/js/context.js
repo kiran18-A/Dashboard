@@ -40,8 +40,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                     img.src = "/static/assets/img/logo.png";
                 }
             });
+            
+            const orgLogoImgs = document.querySelectorAll('.org-logo-display');
+            orgLogoImgs.forEach(img => {
+                if (data.org_logo) {
+                    img.src = data.org_logo;
+                }
+            });
+            
+            // Dispatch event for components that need to know when context is loaded
+            document.dispatchEvent(new CustomEvent('contextLoaded', { detail: data }));
         }
-    } catch (e) {
-        console.error('Error fetching context:', e);
+    } catch (err) {
+        console.error('Error fetching context:', err);
     }
 });
