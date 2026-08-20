@@ -586,6 +586,8 @@ def get_salary():
             
     # Merge with employees to get names
     if not sal_df.empty and not emp_df.empty:
+        sal_df['employee_id'] = sal_df['employee_id'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+        emp_df['employee_id'] = emp_df['employee_id'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
         merged = pd.merge(sal_df, emp_df[['employee_id', 'name']], on='employee_id', how='left')
         merged = merged.fillna('')
         return jsonify(merged.to_dict('records'))
@@ -1601,10 +1603,19 @@ def get_daily_work():
         df = read_excel_cached(path).fillna('')
         
         # Add employee name based on emp_id
+        id_to_name = {}
+        users_df = read_excel_cached(f"users.xlsx").fillna('')
+        if not users_df.empty and 'id' in users_df.columns and 'name' in users_df.columns:
+            u_ids = users_df['id'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+            id_to_name.update(dict(zip(u_ids, users_df['name'])))
+            
         emp_df = read_excel_cached(f"employees.xlsx").fillna('')
         if not emp_df.empty and 'employee_id' in emp_df.columns and 'name' in emp_df.columns:
-            id_to_name = dict(zip(emp_df['employee_id'].astype(str), emp_df['name']))
-            df['name'] = df['emp_id'].astype(str).map(id_to_name).fillna(df['emp_id'])
+            emp_ids = emp_df['employee_id'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+            id_to_name.update(dict(zip(emp_ids, emp_df['name'])))
+            
+        df_ids = df['emp_id'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+        df['name'] = df_ids.map(id_to_name).fillna(df['emp_id'])
             
         return jsonify(df.to_dict('records'))
     return jsonify([])
