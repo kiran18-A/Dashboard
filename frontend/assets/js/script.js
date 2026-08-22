@@ -75,6 +75,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.success) {
                     if (data.role === 'admin') {
                         window.location.href = 'admin-dashboard.html';
+                    } else if ((data.designation || '').toLowerCase() === 'manager') {
+                        window.location.href = 'manager-dashboard.html';
+                    } else if ((data.designation || '').toLowerCase() === 'hr') {
+                        window.location.href = 'hr-dashboard.html';
                     } else {
                         window.location.href = 'employee-dashboard.html';
                     }
@@ -457,90 +461,143 @@ document.addEventListener('DOMContentLoaded', () => {
     if (employeeTableBody) {
         let allEmployees = [];
         
-        async function loadEmployees() {
+        
+        window.allManagers = [];
+        async function loadManagersForDropdown() {
             try {
-                const response = await fetch('/api/employees');
-                allEmployees = await response.json();
-                renderEmployees();
+                const res = await fetch('/api/managers?t=' + Date.now());
+                if (res.ok) {
+                    const managers = await res.json();
+                    window.allManagers = managers;
+                    const sel = document.getElementById('empReportingManager');
+                    if (sel) {
+                        sel.innerHTML = '<option value="">None</option>';
+                        managers.forEach(m => {
+                            sel.innerHTML += `<option value="${m.name}">${m.name}</option>`;
+                        });
+                    }
+                    if (typeof renderEmployees === 'function' && typeof allEmployees !== 'undefined' && allEmployees.length > 0) {
+                        renderEmployees();
+                    }
+                }
+            } catch (err) {}
+        }
+        loadManagersForDropdown();
+
+        async function loadEmployees() {
+
+            try {
+                const response = await fetch('/api/employees?t=' + Date.now());
+                const data = await response.json();
+                if (response.ok && Array.isArray(data)) {
+                    allEmployees = data;
+                    renderEmployees();
+                } else {
+                    console.error('Failed to load employees:', data);
+                    if (employeeTableBody) {
+                        employeeTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-danger">Failed to load employees. Please check permissions or log in again.</td></tr>';
+                    }
+                }
             } catch (err) {
                 console.error("Error fetching employees", err);
             }
         }
         
         function renderEmployees() {
-            employeeTableBody.innerHTML = '';
-            
-            let filteredEmployees = allEmployees;
-            const searchInput = document.getElementById('empSearchInput');
-            const deptSelect = document.getElementById('deptFilterSelect');
-            
-            if (searchInput && searchInput.value) {
-                const q = searchInput.value.toLowerCase();
-                filteredEmployees = filteredEmployees.filter(emp => emp.name.toLowerCase().includes(q) || emp.employee_id.toLowerCase().includes(q));
-            }
-            
-            if (deptSelect && deptSelect.value && deptSelect.value !== "All Departments") {
-                filteredEmployees = filteredEmployees.filter(emp => emp.department === deptSelect.value);
-            }
-            
-            if (filteredEmployees.length === 0) {
-                employeeTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No employees found.</td></tr>';
-                return;
-            }
-            
-            filteredEmployees.forEach(emp => {
-                const statusBadge = emp.status === 'Active' ? 'bg-success' : 'bg-danger';
-                const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=random`;
-                const presenceColor = emp.is_present_today ? 'bg-success' : 'bg-danger';
-                const presenceTitle = emp.is_present_today ? 'Logged in today' : 'Not logged in today';
+            try {
+                if (employeeTableBody) employeeTableBody.innerHTML = '';
                 
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <div class="position-relative me-3">
-                                <img src="${avatarUrl}" class="profile-img-sm" alt="${emp.name}">
-                                <span class="position-absolute bottom-0 end-0 p-1 border border-2 border-white rounded-circle ${presenceColor}" title="${presenceTitle}" style="width: 12px; height: 12px;"></span>
-                            </div>
-                            <div>
-                                <h6 class="mb-0 fw-semibold"><a href="#" class="text-decoration-none view-emp-details text-primary" data-id="${emp.id}">${emp.name}</a></h6>
-                                <small class="text-muted">${emp.employee_id}</small>
-                            </div>
-                        </div>
-                    </td>
-                    <td>${emp.department}</td>
-                    <td>${emp.email || 'Not set'}</td>
-                    <td>${emp.username || 'Not set'}</td>
-                    <td><span class="badge bg-secondary rounded-pill px-3 py-2">${emp.project_count || 0}</span></td>
-                    <td>${generateStatusSelect('employees', emp.id, emp.status, ['Active', 'Inactive'], statusBadge)}</td>
-                    <td>
-                        <button class="btn btn-sm btn-light text-danger delete-emp-btn" data-id="${emp.id}"><i class="fas fa-trash"></i></button>
-                    </td>
-                `;
-                employeeTableBody.appendChild(tr);
-            });
-            
-            // Add event listeners for delete buttons
-            document.querySelectorAll('.delete-emp-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    if (confirm('Are you sure you want to delete this employee?')) {
-                        const empId = e.currentTarget.getAttribute('data-id');
-                        await fetch(`/api/employees/${empId}`, { method: 'DELETE' });
-                        loadEmployees();
+                let filteredEmployees = allEmployees || [];
+                const searchInput = document.getElementById('empSearchInput');
+                const deptSelect = document.getElementById('deptFilterSelect');
+                
+                if (searchInput && searchInput.value) {
+                    const q = searchInput.value.toLowerCase();
+                    filteredEmployees = filteredEmployees.filter(emp => (emp.name||'').toLowerCase().includes(q) || (emp.employee_id||'').toLowerCase().includes(q));
+                }
+                
+                if (deptSelect && deptSelect.value && deptSelect.value !== "All Departments") {
+                    filteredEmployees = filteredEmployees.filter(emp => emp.department === deptSelect.value);
+                }
+                
+                if (filteredEmployees.length === 0) {
+                    if (employeeTableBody) {
+                        employeeTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No employees found.</td></tr>';
                     }
+                    return;
+                }
+                
+                filteredEmployees.forEach(emp => {
+                    const statusBadge = emp.status === 'Active' ? 'bg-success' : 'bg-danger';
+                    const avatarUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(emp.name||'') + '&background=random';
+                    const presenceColor = emp.is_present_today ? 'bg-success' : 'bg-danger';
+                    const presenceTitle = emp.is_present_today ? 'Logged in today' : 'Not logged in today';
+                    
+                    const tr = document.createElement('tr');
+                    
+                    let mgrHtml = (emp.reporting_manager || '-');
+                    if (window.isAdmin) {
+                        let opts = '<option value="">Assign...</option>';
+                        if (window.allManagers && Array.isArray(window.allManagers)) {
+                            opts += window.allManagers.map(m => '<option value="' + m.name + '" ' + (emp.reporting_manager === m.name ? 'selected' : '') + '>' + m.name + '</option>').join('');
+                        }
+                        mgrHtml = '<select class="form-select form-select-sm manager-select" data-id="' + emp.id + '" style="min-width: 130px; font-size: 0.85rem;">' + opts + '</select>';
+                    }
+                    
+                    tr.innerHTML = `
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="position-relative me-3">
+                                    <img src="${avatarUrl}" class="profile-img-sm" alt="${emp.name||''}">
+                                    <span class="position-absolute bottom-0 end-0 p-1 border border-2 border-white rounded-circle ${presenceColor}" title="${presenceTitle}" style="width: 12px; height: 12px;"></span>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 fw-semibold"><a href="#" class="text-decoration-none view-emp-details text-primary" data-id="${emp.id}">${emp.name||''}</a></h6>
+                                    <small class="text-muted">${emp.employee_id||''}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>${emp.department||'-'}</td>
+                        <td>${emp.designation||'-'}</td>
+                        <td>${mgrHtml}</td>
+                        <td>${emp.email || 'Not set'}</td>
+                        <td>${emp.username || 'Not set'}</td>
+                        <td><span class="badge bg-secondary rounded-pill px-3 py-2">${emp.project_count || 0}</span></td>
+                        <td>${generateStatusSelect('employees', emp.id, emp.status, ['Active', 'Inactive'], statusBadge)}</td>
+                        <td>
+                            <button class="btn btn-sm btn-light text-danger delete-emp-btn" data-id="${emp.id}"><i class="fas fa-trash"></i></button>
+                        </td>
+                    `;
+                    employeeTableBody.appendChild(tr);
                 });
-            });
+                
+                // Add event listeners for delete buttons
+                document.querySelectorAll('.delete-emp-btn').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        if (confirm('Are you sure you want to delete this employee?')) {
+                            const empId = e.currentTarget.getAttribute('data-id');
+                            await fetch('/api/employees/' + empId, { method: 'DELETE' });
+                            loadEmployees();
+                        }
+                    });
+                });
 
-            // Add event listeners for view details
-            document.querySelectorAll('.view-emp-details').forEach(link => {
-                link.addEventListener('click', async (e) => {
-                    e.preventDefault();
-                    const empId = e.currentTarget.getAttribute('data-id');
-                    await showEmployeeDetails(empId);
+                // Add event listeners for view details
+                document.querySelectorAll('.view-emp-details').forEach(link => {
+                    link.addEventListener('click', async (e) => {
+                        e.preventDefault();
+                        const empId = e.currentTarget.getAttribute('data-id');
+                        await showEmployeeDetails(empId);
+                    });
                 });
-            });
+                
+            } catch (err) {
+                console.error("RENDER ERROR:", err);
+                if (employeeTableBody) {
+                    employeeTableBody.innerHTML = '<tr><td colspan="9" class="text-danger p-3 fw-bold">Javascript Error in renderEmployees: ' + err.toString() + '<br>' + err.stack + '</td></tr>';
+                }
+            }
         }
-        
         const empSearchInput = document.getElementById('empSearchInput');
         if (empSearchInput) {
             empSearchInput.addEventListener('input', renderEmployees);
@@ -1179,7 +1236,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         async function loadEmployeesForDropdown() {
             try {
-                const response = await fetch('/api/employees');
+                const response = await fetch('/api/employees?t=' + Date.now());
                 const employees = await response.json();
                 const projTeamContainer = document.getElementById('projTeamContainer');
                 if (projTeamContainer && employees.length > 0) {
@@ -1693,7 +1750,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         async function loadEmployeesForWork() {
             try {
-                const response = await fetch('/api/employees');
+                const response = await fetch('/api/employees?t=' + Date.now());
                 const employees = await response.json();
                 const select = document.getElementById('workEmployee');
                 const editSelect = document.getElementById('editWorkEmployee');
@@ -2540,7 +2597,35 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 document.addEventListener('contextLoaded', (e) => {
+    
+    window.isAdmin = e.detail.role === 'admin';
+    window.isManager = (e.detail.designation || '').toLowerCase() === 'manager';
+    window.isHR = (e.detail.designation || '').toLowerCase() === 'hr';
+    
+    const path = window.location.pathname;
+    if (window.isAdmin && (path.includes('employee-dashboard') || path.includes('manager-dashboard') || path.includes('hr-'))) {
+        window.location.href = 'admin-dashboard.html';
+    } else if (window.isManager && (path.includes('employee-dashboard') || path.includes('admin-dashboard') || path.includes('hr-'))) {
+        window.location.href = 'manager-dashboard.html';
+    } else if (window.isHR && (!path.includes('hr-') && path.includes('.html') && !path.includes('login') && !path.includes('policy') && !path.includes('invoice') && !path.includes('quotation'))) {
+        window.location.href = 'hr-dashboard.html';
+    } else if (!window.isAdmin && !window.isManager && !window.isHR && (!path.includes('employee-dashboard') && path.includes('.html') && !path.includes('login') && !path.includes('policy'))) {
+        window.location.href = 'employee-dashboard.html';
+    }
+    
+    // Top Nav Update for HR
+    const topNav = document.querySelector('.navbar-nav');
+    if (topNav && window.isHR) {
+        topNav.innerHTML = `
+            <li class="nav-item me-3"><a class="nav-link" href="hr-dashboard.html"><i class="fas fa-home me-1"></i> Dashboard</a></li>
+            <li class="nav-item me-3"><a class="nav-link active" href="hr-employees.html"><i class="fas fa-users me-1"></i> Employees</a></li>
+            <li class="nav-item me-3"><a class="nav-link" href="hr-attendance.html"><i class="fas fa-calendar-check me-1"></i> Attendance</a></li>
+            <li class="nav-item"><a class="nav-link" href="hr-salary.html"><i class="fas fa-money-bill-wave me-1"></i> Payroll</a></li>
+        `;
+    }
+    
     if (e.detail && e.detail.role === 'admin') {
+
         const orgLogoSection = document.getElementById('adminOrgLogoSection');
         if (orgLogoSection) orgLogoSection.style.display = 'block';
     }
@@ -3137,5 +3222,416 @@ document.addEventListener('DOMContentLoaded', () => {
             window.open(url, '_blank');
             bootstrap.Modal.getInstance(document.getElementById('certificateModal')).hide();
         });
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('policyContainer')) {
+        let currentPolicies = [];
+        
+        async function loadPolicies() {
+            try {
+                const res = await fetch('/api/policy');
+                if (res.ok) {
+                    currentPolicies = await res.json();
+                    renderPolicies();
+                }
+            } catch (e) {
+                console.error('Error loading policies', e);
+            }
+        }
+        
+        function renderPolicies() {
+            const container = document.getElementById('policyContainer');
+            container.innerHTML = '';
+            currentPolicies.forEach(p => {
+                container.innerHTML += `
+                <div class="col-12 col-md-4">
+                    <div class="glass-card p-4 h-100 border-top border-4 border-${p.color}">
+                        <div class="text-${p.color} mb-3"><i class="${p.icon} fa-2x"></i></div>
+                        <h5 class="fw-bold">${p.title}</h5>
+                        <p class="text-muted">${p.description}</p>
+                    </div>
+                </div>
+                `;
+            });
+        }
+        
+        document.addEventListener('contextLoaded', (e) => {
+            const data = e.detail;
+            const isManagerOrAdmin = data.role === 'admin' || (data.designation || '').toLowerCase() === 'hr';
+            if (isManagerOrAdmin) {
+                document.getElementById('editPolicyBtn').classList.remove('d-none');
+            }
+        });
+        
+        const editPolicyBtn = document.getElementById('editPolicyBtn');
+        if(editPolicyBtn) {
+            editPolicyBtn.addEventListener('click', () => {
+                const editor = document.getElementById('policyEditorContainer');
+                editor.innerHTML = '';
+                currentPolicies.forEach((p, index) => {
+                    addPolicyEditorRow(p, index);
+                });
+            });
+        }
+        
+        const addPolicyBtn = document.getElementById('addPolicyBtn');
+        if(addPolicyBtn) {
+            addPolicyBtn.addEventListener('click', () => {
+                addPolicyEditorRow({title: '', description: '', icon: 'fas fa-info-circle', color: 'primary'}, document.querySelectorAll('.policy-edit-item').length);
+            });
+        }
+        
+        function addPolicyEditorRow(p, index) {
+            const editor = document.getElementById('policyEditorContainer');
+            const row = document.createElement('div');
+            row.className = 'policy-edit-item border rounded p-3 mb-3 position-relative';
+            row.innerHTML = `
+                <button type="button" class="btn-close position-absolute top-0 end-0 m-2 remove-policy-btn" aria-label="Close"></button>
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Title</label>
+                        <input type="text" class="form-control policy-title" value="${p.title}" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Icon Class</label>
+                        <input type="text" class="form-control policy-icon" value="${p.icon}" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Color Class</label>
+                        <select class="form-select policy-color">
+                            <option value="primary" ${p.color === 'primary' ? 'selected' : ''}>Primary</option>
+                            <option value="success" ${p.color === 'success' ? 'selected' : ''}>Success</option>
+                            <option value="info" ${p.color === 'info' ? 'selected' : ''}>Info</option>
+                            <option value="warning" ${p.color === 'warning' ? 'selected' : ''}>Warning</option>
+                            <option value="danger" ${p.color === 'danger' ? 'selected' : ''}>Danger</option>
+                            <option value="secondary" ${p.color === 'secondary' ? 'selected' : ''}>Secondary</option>
+                        </select>
+                    </div>
+                    <div class="col-12 mt-2">
+                        <label class="form-label small fw-semibold">Description</label>
+                        <textarea class="form-control policy-desc" rows="2" required>${p.description}</textarea>
+                    </div>
+                </div>
+            `;
+            
+            row.querySelector('.remove-policy-btn').addEventListener('click', () => {
+                row.remove();
+            });
+            editor.appendChild(row);
+        }
+        
+        const editPolicyForm = document.getElementById('editPolicyForm');
+        if(editPolicyForm) {
+            editPolicyForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const newPolicies = [];
+                document.querySelectorAll('.policy-edit-item').forEach((item, index) => {
+                    newPolicies.push({
+                        id: index + 1,
+                        title: item.querySelector('.policy-title').value,
+                        icon: item.querySelector('.policy-icon').value,
+                        color: item.querySelector('.policy-color').value,
+                        description: item.querySelector('.policy-desc').value
+                    });
+                });
+                
+                try {
+                    const res = await fetch('/api/policy', {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(newPolicies)
+                    });
+                    if (res.ok) {
+                        currentPolicies = newPolicies;
+                        renderPolicies();
+                        bootstrap.Modal.getInstance(document.getElementById('editPolicyModal')).hide();
+                    } else {
+                        const data = await res.json();
+                        alert(data.error || 'Failed to update policies');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('Error updating policies');
+                }
+            });
+        }
+        
+        loadPolicies();
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('invoicesTableBody')) {
+        let currentInvoices = [];
+        
+        async function fetchInvoices() {
+            try {
+                const res = await fetch('/api/invoices');
+                if (res.ok) {
+                    currentInvoices = await res.json();
+                    renderInvoices();
+                }
+            } catch (err) {
+                console.error('Error fetching invoices', err);
+            }
+        }
+        
+        function getStatusBadge(status) {
+            switch(status) {
+                case 'Paid': return '<span class="badge bg-success bg-opacity-10 text-success">Paid</span>';
+                case 'Pending': return '<span class="badge bg-warning bg-opacity-10 text-warning">Pending</span>';
+                case 'Overdue': return '<span class="badge bg-danger bg-opacity-10 text-danger">Overdue</span>';
+                default: return `<span class="badge bg-secondary bg-opacity-10 text-secondary">${status}</span>`;
+            }
+        }
+        
+        function renderInvoices() {
+            const tbody = document.getElementById('invoicesTableBody');
+            tbody.innerHTML = '';
+            
+            if (currentInvoices.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted">No invoices found</td></tr>`;
+                return;
+            }
+            
+            currentInvoices.forEach(inv => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${inv.id}</td>
+                        <td class="fw-semibold">${inv.invoice_number}</td>
+                        <td>${inv.client_name}</td>
+                        <td class="fw-bold">₹${inv.amount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                        <td>${inv.due_date}</td>
+                        <td>${getStatusBadge(inv.status)}</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-light text-success me-2 send-inv-btn" data-id="${inv.id}" title="Send"><i class="fas fa-paper-plane"></i></button>
+                            <button class="btn btn-sm btn-light text-info me-2 print-inv-btn" data-id="${inv.id}" title="Print"><i class="fas fa-print"></i></button>
+                            <button class="btn btn-sm btn-light text-primary me-2 edit-inv-btn" data-id="${inv.id}" title="Edit"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-sm btn-light text-danger del-inv-btn" data-id="${inv.id}" title="Delete"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            document.querySelectorAll('.send-inv-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    const inv = currentInvoices.find(i => i.id == id);
+                    if (inv) {
+                        alert(`Invoice ${inv.invoice_number} sent to ${inv.client_name} successfully!`);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.print-inv-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    const inv = currentInvoices.find(i => i.id == id);
+                    if (inv) {
+                        window.location.href = `view-invoice.html?id=${inv.id}`;
+                    }
+                });
+            });
+
+            document.querySelectorAll('.edit-inv-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    const inv = currentInvoices.find(i => i.id == id);
+                    if (inv) {
+                        document.getElementById('editInvId').value = inv.id;
+                        document.getElementById('editInvNum').value = inv.invoice_number;
+                        document.getElementById('editInvClient').value = inv.client_name;
+                        document.getElementById('editInvDesc').value = inv.description;
+                        document.getElementById('editInvAmount').value = inv.amount;
+                        document.getElementById('editInvStatus').value = inv.status;
+                        document.getElementById('editInvDate').value = inv.date;
+                        document.getElementById('editInvDueDate').value = inv.due_date;
+                        new bootstrap.Modal(document.getElementById('editInvoiceModal')).show();
+                    }
+                });
+            });
+            
+            document.querySelectorAll('.del-inv-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    if (confirm('Are you sure you want to delete this invoice?')) {
+                        const id = btn.getAttribute('data-id');
+                        try {
+                            const res = await fetch(`/api/invoices/${id}`, { method: 'DELETE' });
+                            if (res.ok) fetchInvoices();
+                        } catch(e) {
+                            console.error(e);
+                        }
+                    }
+                });
+            });
+        }
+        
+        const addInvoiceForm = document.getElementById('addInvoiceForm');
+        
+        // Fetch clients for invoice autocomplete
+        fetch('/api/clients')
+            .then(res => res.json())
+            .then(data => {
+                const datalist = document.getElementById('invoiceClientsList');
+                if (data.clients && datalist) {
+                    data.clients.forEach(client => {
+                        const opt = document.createElement('option');
+                        opt.value = client.name || client.company;
+                        datalist.appendChild(opt);
+                    });
+                }
+            })
+            .catch(err => console.error('Error fetching clients for invoice', err));
+
+        
+        const addInvoiceModalEl = document.getElementById('addInvoiceModal');
+        if (addInvoiceModalEl) {
+            addInvoiceModalEl.addEventListener('show.bs.modal', () => {
+                if (currentInvoices) {
+                    const count = currentInvoices.length + 1;
+                    const padded = String(count).padStart(3, '0');
+                    document.getElementById('invNum').value = `RVI${padded}`;
+                }
+                const dateField = document.getElementById('invDate');
+                if (dateField && !dateField.value) {
+                    dateField.valueAsDate = new Date();
+                }
+            });
+        }
+
+
+        if (addInvoiceForm) {
+            addInvoiceForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const data = {
+                    invoice_number: document.getElementById('invNum').value,
+                    client_name: document.getElementById('invClient').value,
+                    description: document.getElementById('invDesc').value,
+                    amount: parseFloat(document.getElementById('invAmount').value),
+                    status: document.getElementById('invStatus').value,
+                    date: document.getElementById('invDate').value,
+                    due_date: document.getElementById('invDueDate').value
+                };
+                
+                try {
+                    const res = await fetch('/api/invoices', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(data)
+                    });
+                    if (res.ok) {
+                        fetchInvoices();
+                        addInvoiceForm.reset();
+                        bootstrap.Modal.getInstance(document.getElementById('addInvoiceModal')).hide();
+                    } else {
+                        const err = await res.json();
+                        alert(err.error || 'Failed to add invoice');
+                    }
+                } catch(err) {
+                    console.error(err);
+                }
+            });
+        }
+        
+        const editInvoiceForm = document.getElementById('editInvoiceForm');
+        if (editInvoiceForm) {
+            editInvoiceForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = document.getElementById('editInvId').value;
+                const data = {
+                    invoice_number: document.getElementById('editInvNum').value,
+                    client_name: document.getElementById('editInvClient').value,
+                    description: document.getElementById('editInvDesc').value,
+                    amount: parseFloat(document.getElementById('editInvAmount').value),
+                    status: document.getElementById('editInvStatus').value,
+                    date: document.getElementById('editInvDate').value,
+                    due_date: document.getElementById('editInvDueDate').value
+                };
+                
+                try {
+                    const res = await fetch(`/api/invoices/${id}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(data)
+                    });
+                    if (res.ok) {
+                        fetchInvoices();
+                        bootstrap.Modal.getInstance(document.getElementById('editInvoiceModal')).hide();
+                    } else {
+                        const err = await res.json();
+                        alert(err.error || 'Failed to update invoice');
+                    }
+                } catch(err) {
+                    console.error(err);
+                }
+            });
+        }
+        
+        fetchInvoices();
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('quotationsTableBody')) {
+        let currentQuotations = [];
+        
+        async function fetchQuotations() {
+            try {
+                const res = await fetch('/api/quotations');
+                if (res.ok) {
+                    currentQuotations = await res.json();
+                    renderQuotations();
+                }
+            } catch (err) {
+                console.error('Error fetching quotations', err);
+            }
+        }
+        
+        function renderQuotations() {
+            const tbody = document.getElementById('quotationsTableBody');
+            tbody.innerHTML = '';
+            
+            if (currentQuotations.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">No quotations found</td></tr>`;
+                return;
+            }
+            
+            currentQuotations.forEach(quote => {
+                const buyerName = quote.buyer_info ? quote.buyer_info.name : '';
+                const totalAmt = quote.totals ? quote.totals.total_amount : 0;
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="fw-semibold">${quote.quote_no || 'Draft'}</td>
+                        <td>${buyerName}</td>
+                        <td class="fw-bold">₹${parseFloat(totalAmt).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                        <td>${quote.date}</td>
+                        <td><span class="badge bg-primary bg-opacity-10 text-primary">${quote.status}</span></td>
+                        <td class="text-end">
+                            <a href="view-quotation.html?id=${quote.id}" class="btn btn-sm btn-light text-info me-2" title="View/Print"><i class="fas fa-eye"></i></a>
+                            <button class="btn btn-sm btn-light text-danger del-quote-btn" data-id="${quote.id}"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            document.querySelectorAll('.del-quote-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    if (confirm('Are you sure you want to delete this quotation?')) {
+                        const id = btn.getAttribute('data-id');
+                        try {
+                            const res = await fetch(`/api/quotations/${id}`, { method: 'DELETE' });
+                            if (res.ok) fetchQuotations();
+                        } catch(e) {
+                            console.error(e);
+                        }
+                    }
+                });
+            });
+        }
+        
+        fetchQuotations();
     }
 });

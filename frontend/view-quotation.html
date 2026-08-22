@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Quotation - Renvora Tech</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f1f5f9; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        .print-container { max-width: 900px; margin: 40px auto; background: white; padding: 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 2px solid #000; }
+        .quote-header { background-color: #0b5e92 !important; color: white !important; text-align: center; padding: 10px; font-weight: bold; font-size: 24px; border-bottom: 2px solid #000; }
+        
+        .info-section { padding: 10px 15px; font-size: 13px; line-height: 1.4; border-bottom: 2px solid #000; }
+        .info-section.yellow-strip { background-color: #e5d888 !important; border-bottom: 2px solid #000; height: 15px; padding: 0;}
+        .info-section.blue-strip { background-color: #0b5e92 !important; border-bottom: 2px solid #000; height: 15px; padding: 0;}
+        
+        .info-label { display: inline-block; width: 120px; font-weight: bold; }
+        
+        .quote-table { width: 100%; border-collapse: collapse; margin-bottom: 0; font-size: 13px; }
+        .quote-table th, .quote-table td { border: 1px solid #000; padding: 6px; text-align: center; }
+        .quote-table th { background-color: #e5ea90 !important; font-weight: bold; }
+        .quote-table .text-start { text-align: left; }
+        
+        .totals-section { display: flex; font-size: 13px; }
+        .totals-left { width: 60%; padding: 10px; border-right: 1px solid #000; }
+        .totals-right { width: 40%; }
+        
+        .totals-table { width: 100%; border-collapse: collapse; }
+        .totals-table td { border-bottom: 1px solid #000; padding: 5px 10px; }
+        .totals-table td:last-child { border-left: 1px solid #000; text-align: right; width: 120px; }
+        .totals-table tr:last-child td { border-bottom: none; }
+        
+        @media print {
+            body { background: white; }
+            .print-container { margin: 0; border: none; box-shadow: none; max-width: 100%; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="text-center my-3 no-print">
+        <a href="quotation.html" class="btn btn-secondary me-2"><i class="fas fa-arrow-left me-1"></i> Back</a>
+        <button onclick="window.print()" class="btn btn-primary"><i class="fas fa-print me-1"></i> Print / Save PDF</button>
+    </div>
+
+    <div class="print-container">
+        <div class="quote-header">Quotation</div>
+        
+        <div class="info-section">
+            <div class="fw-bold mb-1" id="sName">Company/Seller Name: </div>
+            <div id="sAddress">Address: </div>
+            <br>
+            <div><span class="info-label">Phone No.:</span> <span id="sPhone"></span></div>
+            <div><span class="info-label">Email ID:</span> <span id="sEmail"></span></div>
+            <div><span class="info-label">State:</span> <span id="sState"></span></div>
+        </div>
+        
+        <div class="info-section yellow-strip"></div>
+        
+        <div class="info-section d-flex p-0 border-0">
+            <div style="width: 50%; padding: 10px 15px; border-right: 2px solid #000;">
+                <div class="fw-bold mb-1">Quote To:</div>
+                <div><span class="info-label" style="width: 80px;">Name:</span> <span id="bName"></span></div>
+                <div><span class="info-label" style="width: 80px;">Address:</span> <span id="bAddress"></span></div>
+                <br><br>
+                <div><span class="info-label" style="width: 80px;">Contact No.:</span> <span id="bPhone"></span></div>
+                <div><span class="info-label" style="width: 80px;">State:</span> <span id="bState"></span></div>
+            </div>
+            <div style="width: 50%; padding: 10px 15px;">
+                <div class="fw-bold mb-1 text-center">Shipping To:</div>
+                <br><br><br>
+                <div><span class="info-label">Quotation No.:</span> <span id="qNo"></span></div>
+                <div><span class="info-label">Date:</span> <span id="qDate"></span></div>
+                <div><span class="info-label">Due Date:</span> <span id="qDueDate"></span></div>
+            </div>
+        </div>
+        
+        <div class="info-section blue-strip border-top"></div>
+        
+        <table class="quote-table">
+            <thead>
+                <tr>
+                    <th width="5%">#</th>
+                    <th width="35%" class="text-start">Service name</th>
+                    <th width="10%">Quantity</th>
+                    <th width="10%">Unit</th>
+                    <th width="12%">Price/<br>Unit</th>
+                    <th width="10%">Discount</th>
+                    <th width="8%">GST</th>
+                    <th width="10%">Amount</th>
+                </tr>
+            </thead>
+            <tbody id="printItemsBody">
+                <!-- Items -->
+            </tbody>
+            <tfoot>
+                <tr style="background-color: #e5ea90 !important; font-weight: bold;">
+                    <td colspan="2" class="text-start" style="font-size: 15px;">Total</td>
+                    <td></td><td></td><td></td><td></td><td></td><td></td>
+                </tr>
+                <tr class="yellow-strip p-0"><td colspan="8" style="height: 15px;"></td></tr>
+            </tfoot>
+        </table>
+        
+        <div class="totals-section border-bottom border-2 border-dark" style="border-top: none;">
+            <div class="totals-left d-flex flex-column">
+                <div class="mb-4">
+                    <span class="fw-bold">Amount in words:</span><br>
+                    <span id="amountWords"></span>
+                </div>
+                <div class="border-top border-dark pt-2 mt-auto">
+                    <span class="fw-bold">Terms & Conditions</span><br>
+                    <div id="termsText" style="white-space: pre-wrap; margin-top: 5px;"></div>
+                </div>
+            </div>
+            <div class="totals-right">
+                <table class="totals-table">
+                    <tr><td class="text-center fw-bold">Sub Total:</td><td id="tSub"></td></tr>
+                    <tr><td>Discount:</td><td id="tDisc"></td></tr>
+                    <tr><td>SGST</td><td id="tSGST"></td></tr>
+                    <tr><td>CGST</td><td id="tCGST"></td></tr>
+                    <tr><td class="text-center fw-bold">Total Invoice Amount</td><td id="tInv" class="fw-bold"></td></tr>
+                    <tr><td>Service Charge</td><td id="tSC"></td></tr>
+                    <tr><td>Total Amount</td><td id="tTotal"></td></tr>
+                    <tr><td>Received</td><td id="tRec"></td></tr>
+                    <tr><td>Balance</td><td id="tBal"></td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const quoteId = urlParams.get('id');
+            
+            if (!quoteId) return alert('No quotation ID provided');
+            
+            try {
+                const res = await fetch(`/api/quotations/${quoteId}`);
+                if (!res.ok) return alert('Quotation not found');
+                
+                const q = await res.json();
+                
+                // Seller
+                document.getElementById('sName').textContent = 'Company/Seller Name: ' + (q.seller_info.name || '');
+                document.getElementById('sAddress').textContent = 'Address: ' + (q.seller_info.address || '');
+                document.getElementById('sPhone').textContent = q.seller_info.phone || '';
+                document.getElementById('sEmail').textContent = q.seller_info.email || '';
+                document.getElementById('sState').textContent = q.seller_info.state || '';
+                
+                // Buyer
+                document.getElementById('bName').textContent = q.buyer_info.name || '';
+                document.getElementById('bAddress').textContent = q.buyer_info.address || '';
+                document.getElementById('bPhone').textContent = q.buyer_info.phone || '';
+                document.getElementById('bState').textContent = q.buyer_info.state || '';
+                
+                // Details
+                document.getElementById('qNo').textContent = q.quote_no || '';
+                document.getElementById('qDate').textContent = q.date || '';
+                document.getElementById('qDueDate').textContent = q.due_date || '';
+                
+                // Items
+                const tbody = document.getElementById('printItemsBody');
+                let emptyRows = 6;
+                if (q.items && q.items.length > 0) {
+                    q.items.forEach((item, index) => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td class="text-start">${item.name}</td>
+                                <td>${item.qty}</td>
+                                <td>${item.unit}</td>
+                                <td>${item.price}</td>
+                                <td>${item.disc}</td>
+                                <td>${item.gst}%</td>
+                                <td>${item.amount}</td>
+                            </tr>
+                        `;
+                    });
+                    emptyRows = Math.max(0, 10 - q.items.length); // Add empty rows to match layout
+                }
+                
+                for(let i=0; i<emptyRows; i++) {
+                    tbody.innerHTML += `<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
+                }
+                
+                // Totals
+                document.getElementById('amountWords').textContent = q.amount_in_words || '';
+                document.getElementById('termsText').textContent = q.terms || '';
+                
+                if (q.totals) {
+                    document.getElementById('tSub').textContent = q.totals.sub_total || 0;
+                    document.getElementById('tDisc').textContent = q.totals.discount || 0;
+                    document.getElementById('tSGST').textContent = q.totals.sgst || 0;
+                    document.getElementById('tCGST').textContent = q.totals.cgst || 0;
+                    document.getElementById('tInv').textContent = q.totals.total_invoice || 0;
+                    document.getElementById('tSC').textContent = q.totals.service_charge || 0;
+                    document.getElementById('tTotal').textContent = q.totals.total_amount || 0;
+                    document.getElementById('tRec').textContent = q.totals.received || 0;
+                    document.getElementById('tBal').textContent = q.totals.balance || 0;
+                }
+                
+            } catch (err) {
+                console.error(err);
+            }
+        });
+    </script>
+</body>
+</html>

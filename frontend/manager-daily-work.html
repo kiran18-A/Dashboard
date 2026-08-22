@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>incomes - Admin Dashboard</title>
+    <title>Daily Work - Admin Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="/static/assets/css/style.css?v=1787313557">
@@ -52,21 +52,21 @@
 
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <a href="admin-dashboard.html" class="sidebar-brand">
+            <a href="manager-dashboard.html" class="sidebar-brand">
                 <img src="/static/assets/img/logo.png" alt="Renvora Tech Logo" style="height: 48px; width: auto; object-fit: contain;" class="org-logo-display"> <span style="margin-left: 8px; font-weight: 700;"><span class="org-name-display">Renvora Tech</span></span>
             </a>
         </div>
         <div class="sidebar-menu py-3">
-            <a href="admin-dashboard.html" class="nav-link"><i class="fas fa-home"></i> Dashboard</a>
-            <a href="employees.html" class="nav-link"><i class="fas fa-users"></i> Employees</a>
+            <a href="manager-dashboard.html" class="nav-link"><i class="fas fa-home"></i> Dashboard</a>
+            <a href="teams.html" class="nav-link"><i class="fas fa-users"></i> Teams</a>
             <a href="clients.html" class="nav-link"><i class="fas fa-briefcase"></i> Clients</a>
-            <a href="projects.html" class="nav-link"><i class="fas fa-project-diagram"></i> Projects</a>
-            <a href="daily-work.html" class="nav-link"><i class="fas fa-clipboard-list"></i> Daily Work Report</a>
+            <a href="manager-projects.html" class="nav-link"><i class="fas fa-project-diagram"></i> Projects</a>
+            <a href="manager-daily-work.html" class="nav-link active"><i class="fas fa-clipboard-list"></i> Daily Work Report</a>
 <a href="#financeSubmenu" data-bs-toggle="collapse" class="nav-link d-flex align-items-center"><i class="fas fa-wallet"></i> Finance <i class="fas fa-chevron-down ms-auto" style="font-size:0.8em"></i></a>
-            <div class="collapse show" id="financeSubmenu">
+            <div class="collapse " id="financeSubmenu">
                 <a href="salary.html" class="nav-link " style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-money-bill-wave"></i> Salary</a>
                 <a href="expenses.html" class="nav-link " style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-file-invoice-dollar"></i> Expenses</a>
-                <a href="incomes.html" class="nav-link active" style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-coins"></i> Income</a>
+                <a href="incomes.html" class="nav-link " style="padding-left: 3rem; font-size: 0.95em;"><i class="fas fa-coins"></i> Income</a>
             </div>
                         <a href="invoice.html" class="nav-link"><i class="fas fa-file-invoice"></i> Invoices</a>
                         <a href="quotation.html" class="nav-link"><i class="fas fa-file-signature"></i> Quotations</a>
@@ -104,26 +104,41 @@
 
         <div class="container-fluid p-4">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4 class="fw-bold mb-0">incomes</h4>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addIncomeModal"><i class="fas fa-plus me-2"></i>Add income</button>
+                <h4 class="mb-0 fw-bold">Daily Work Report</h4>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addWorkModal"><i class="fas fa-plus me-2"></i>Add Report</button>
             </div>
             
-            <div class="row g-4 mb-4">
-                <div class="col-12"><div class="glass-card p-4 text-center border-start border-4 border-primary"><h3 class="fw-bold text-primary mb-1" id="statIncomeTotal">₹0</h3><p class="text-muted mb-0 fw-semibold">Total incomes</p></div></div>
-            </div>
-
             <div class="glass-card p-4">
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <span class="input-group-text bg-transparent"><i class="fas fa-search text-muted"></i></span>
+                            <input type="text" class="form-control border-start-0" id="searchEmployeeInput" placeholder="Search by Employee...">
+                        </div>
+                    </div>
+                    <div class="col-md-4 mt-3 mt-md-0">
+                        <input type="date" class="form-control" id="filterDateInput">
+                    </div>
+                    <div class="col-md-4 mt-3 mt-md-0">
+                        <button class="btn btn-primary w-100" id="filterBtn"><i class="fas fa-filter me-2"></i>Filter</button>
+                    </div>
+                </div>
+
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead>
                             <tr>
-                                <th>income Name</th>
-                                <th>Amount</th>
+                                <th>Employee</th>
                                 <th>Date</th>
-                                <th>Action</th>
+                                <th>Time</th>
+                                <th>Project</th>
+                                <th>Today's Work</th>
+                                <th>Review</th>
+                                <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="incomeTableBody">
+                        <tbody id="workTableBody">
                             <!-- Populated dynamically -->
                         </tbody>
                     </table>
@@ -132,31 +147,56 @@
         </div>
     </main>
 
-    <!-- Add income Modal -->
-    <div class="modal fade" id="addIncomeModal" tabindex="-1" aria-hidden="true">
+    <!-- Add Work Modal -->
+    <div class="modal fade" id="addWorkModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content glass-card border-0">
           <div class="modal-header border-bottom border-secondary">
-            <h5 class="modal-title fw-bold">Add New income</h5>
+            <h5 class="modal-title fw-bold">Add Daily Work Report</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <form id="addIncomeForm">
+            <form id="addWorkForm">
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">income Name</label>
-                    <input type="text" class="form-control" id="incName" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Amount (₹)</label>
-                    <input type="number" class="form-control" id="incAmount" min="0" step="0.01" required>
+                    <label class="form-label fw-semibold">Employee</label>
+                    <select class="form-select" id="workEmployee" required>
+                        <option value="">Select Employee</option>
+                    </select>
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Date</label>
-                    <input type="date" class="form-control" id="incDate" required>
+                    <input type="date" class="form-control" id="workDate" required>
                 </div>
-                <div class="modal-footer border-top border-secondary mt-4">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save income</button>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Project Name</label>
+                    <select class="form-select" id="workProject" onchange="document.getElementById('otherProjectDiv').style.display = this.value === 'Other' ? 'block' : 'none'">
+                        <option value="" disabled selected>Loading projects...</option>
+                    </select>
+                </div>
+                <div class="mb-3" id="otherProjectDiv" style="display: none;">
+                    <label class="form-label fw-semibold">Enter Project Name</label>
+                    <input type="text" class="form-control" id="workProjectOther" placeholder="E.g. CRM Redesign">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Estimated Time</label>
+                    <input type="text" class="form-control" id="workTime" placeholder="E.g. 2 hours" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Today's Work (Description)</label>
+                    <textarea class="form-control" id="workDescription" rows="3" required></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Status</label>
+                    <select class="form-select" id="workStatus">
+                        <option>To Do</option>
+                        <option>Review</option>
+                        <option>In Progress</option>
+                        <option>Done</option>
+                    </select>
+                </div>
+                <div class="text-end mt-4">
+                    <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Report</button>
                 </div>
             </form>
           </div>
@@ -164,32 +204,56 @@
       </div>
     </div>
 
-    <!-- Edit Income Modal -->
-    <div class="modal fade" id="editIncomeModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="editWorkModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content glass-card border-0">
           <div class="modal-header border-bottom border-secondary">
-            <h5 class="modal-title fw-bold">Edit Income</h5>
+            <h5 class="modal-title fw-bold">Edit Daily Work Report</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <form id="editIncomeForm">
-                <input type="hidden" id="editIncId">
+            <form id="editWorkForm">
+                    <input type="hidden" id="editWorkId">
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">Income Name</label>
-                    <input type="text" class="form-control" id="editIncName" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Amount (₹)</label>
-                    <input type="number" class="form-control" id="editIncAmount" min="0" step="0.01" required>
+                    <label class="form-label fw-semibold">Employee</label>
+                    <select class="form-select" id="editWorkEmployee" required>
+                        <option value="">Select Employee</option>
+                    </select>
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Date</label>
-                    <input type="date" class="form-control" id="editIncDate" required>
+                    <input type="date" class="form-control" id="editWorkDate" required>
                 </div>
-                <div class="modal-footer border-top border-secondary mt-4">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Project Name</label>
+                    <select class="form-select" id="editWorkProject" onchange="document.getElementById('editOtherProjectDiv').style.display = this.value === 'Other' ? 'block' : 'none'">
+                        <option value="" disabled selected>Loading projects...</option>
+                    </select>
+                </div>
+                <div class="mb-3" id="editOtherProjectDiv" style="display: none;">
+                    <label class="form-label fw-semibold">Enter Project Name</label>
+                    <input type="text" class="form-control" id="editWorkProjectOther" placeholder="E.g. CRM Redesign">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Estimated Time</label>
+                    <input type="text" class="form-control" id="editWorkTime" placeholder="E.g. 2 hours" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Today's Work (Description)</label>
+                    <textarea class="form-control" id="editWorkDescription" rows="3" required></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Status</label>
+                    <select class="form-select" id="editWorkStatus">
+                        <option>To Do</option>
+                        <option>Review</option>
+                        <option>In Progress</option>
+                        <option>Done</option>
+                    </select>
+                </div>
+                <div class="text-end mt-4">
+                    <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Report</button>
                 </div>
             </form>
           </div>
@@ -199,7 +263,37 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/static/assets/js/context.js?v=1787313557"></script>
-    <script src="/static/assets/js/script.js?v=4"></script>
+    <script src="/static/assets/js/script.js?v=1787313557"></script>
+
+    <!-- Review Work Modal -->
+    <div class="modal fade" id="reviewWorkModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content glass-card border-0">
+          <div class="modal-header border-bottom border-secondary">
+            <h5 class="modal-title fw-bold">Admin Review</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+                <label class="form-label fw-semibold text-muted">Original Work Description</label>
+                <div class="p-3 rounded" id="reviewOriginalDescription" style="background-color: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); white-space: pre-wrap; font-size: 0.95em;"></div>
+            </div>
+            <form id="reviewWorkForm">
+                <input type="hidden" id="reviewWorkId">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Your Review / Feedback</label>
+                    <textarea class="form-control" id="reviewWorkText" rows="4" placeholder="Enter your review..."></textarea>
+                </div>
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-light shadow-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary shadow-sm"><i class="fas fa-save me-2"></i>Save Review</button>
+                </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
 
     <!-- Global Calendar Modal -->
     <div class="modal fade" id="globalCalendarModal" tabindex="-1" aria-hidden="true">

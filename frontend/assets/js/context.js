@@ -1,6 +1,10 @@
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         const response = await fetch('/api/context');
+        if (response.status === 401 && !window.location.pathname.includes('login.html')) {
+            window.location.href = 'login.html';
+            return;
+        }
         if (response.ok) {
             const data = await response.json();
 

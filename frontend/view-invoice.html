@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Invoice - Renvora Tech</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f1f5f9; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; font-family: 'Inter', sans-serif; }
+        .print-container { max-width: 900px; margin: 40px auto; background: white; padding: 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 8px; }
+        
+        .header-section { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px;}
+        .company-logo { max-width: 180px; margin-bottom: 15px; }
+        .company-details { color: #555; font-size: 14px; text-align: right; }
+        .company-name { font-size: 24px; font-weight: bold; color: #0b5e92; margin-bottom: 5px; }
+        
+        .invoice-title-box { background-color: #0b5e92; color: white; padding: 10px 30px; display: inline-block; font-size: 28px; font-weight: bold; letter-spacing: 2px; border-radius: 4px; margin-bottom: 20px; }
+        
+        .info-grid { display: flex; justify-content: space-between; margin-bottom: 40px; }
+        .bill-to { width: 50%; padding-right: 20px; }
+        .invoice-meta { width: 40%; }
+        
+        .section-label { font-size: 12px; text-transform: uppercase; color: #888; font-weight: bold; margin-bottom: 8px; letter-spacing: 1px; }
+        
+        .meta-table { width: 100%; font-size: 14px; }
+        .meta-table td { padding: 5px 0; }
+        .meta-table td:first-child { font-weight: bold; color: #555; width: 45%; }
+        
+        .invoice-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 14px; }
+        .invoice-table th { background-color: #f8f9fa; color: #333; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; padding: 12px 15px; border-bottom: 2px solid #ddd; text-align: left; }
+        .invoice-table td { padding: 15px; border-bottom: 1px solid #eee; color: #555; }
+        .invoice-table .text-end { text-align: right; }
+        .invoice-table .fw-bold { font-weight: bold; color: #333; }
+        
+        .totals-section { display: flex; justify-content: flex-end; margin-bottom: 40px; }
+        .totals-box { width: 350px; background-color: #f8f9fa; border-radius: 8px; padding: 20px; }
+        .totals-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; color: #555; }
+        .totals-row.grand-total { border-top: 2px solid #ddd; margin-top: 10px; padding-top: 15px; font-size: 18px; font-weight: bold; color: #0b5e92; }
+        
+        .footer-notes { font-size: 13px; color: #666; border-top: 1px solid #eee; padding-top: 20px; }
+        
+        @media print {
+            body { background: white; }
+            .print-container { margin: 0; padding: 0; box-shadow: none; max-width: 100%; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="text-center my-3 no-print">
+        <a href="invoice.html" class="btn btn-secondary me-2"><i class="fas fa-arrow-left me-1"></i> Back</a>
+        <button onclick="window.print()" class="btn btn-primary"><i class="fas fa-print me-1"></i> Print / Save PDF</button>
+    </div>
+
+    <div class="print-container">
+        <!-- Header -->
+        <div class="header-section">
+            <div class="left-header">
+                <img src="/static/assets/img/logo.png" alt="Logo" class="company-logo" onerror="this.src='https://via.placeholder.com/180x60?text=LOGO'">
+            </div>
+            <div class="company-details">
+                <div class="company-name">Renvora Tech</div>
+                <div>IT Park, Cyber City</div>
+                <div>Maharashtra, India</div>
+                <div>Email: info@renvoratech.com</div>
+                <div>Phone: +91-9876543210</div>
+            </div>
+        </div>
+        
+        <div class="invoice-title-box">INVOICE</div>
+        
+        <!-- Info Grid -->
+        <div class="info-grid">
+            <div class="bill-to">
+                <div class="section-label">Billed To:</div>
+                <div class="fw-bold" style="font-size: 18px; color: #333; margin-bottom: 5px;" id="clientName">Loading...</div>
+                <!-- Since invoice API currently only saves client_name, we can just show that -->
+                <div style="color: #666; font-size: 14px;">Client of Renvora Tech</div>
+            </div>
+            <div class="invoice-meta">
+                <table class="meta-table">
+                    <tr>
+                        <td>Invoice No:</td>
+                        <td id="invNumber">--</td>
+                    </tr>
+                    <tr>
+                        <td>Date of Issue:</td>
+                        <td id="invDate">--</td>
+                    </tr>
+                    <tr>
+                        <td>Due Date:</td>
+                        <td id="invDue">--</td>
+                    </tr>
+                    <tr>
+                        <td>Status:</td>
+                        <td id="invStatus">--</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Table -->
+        <table class="invoice-table">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th class="text-end">Amount (INR)</th>
+                </tr>
+            </thead>
+            <tbody id="invoiceItems">
+                <tr>
+                    <td id="invDesc">Loading description...</td>
+                    <td class="text-end fw-bold" id="invAmount">0.00</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <!-- Totals -->
+        <div class="totals-section">
+            <div class="totals-box">
+                <div class="totals-row grand-total">
+                    <span>Total Due:</span>
+                    <span id="grandTotal">₹0.00</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer-notes">
+            <div class="fw-bold mb-2">Terms & Conditions:</div>
+            <div>1. Please make payment by the due date.</div>
+            <div>2. For any inquiries regarding this invoice, please contact info@renvoratech.com.</div>
+            <div class="mt-4 text-center" style="font-style: italic;">Thank you for your business!</div>
+        </div>
+        
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const invId = urlParams.get('id');
+            
+            if (!invId) return alert('No invoice ID provided');
+            
+            try {
+                // Fetch the list of invoices since we don't have a single-invoice API endpoint yet
+                const res = await fetch('/api/invoices');
+                if (!res.ok) return alert('Failed to fetch invoices');
+                
+                const invoices = await res.json();
+                const inv = invoices.find(i => String(i.id) === String(invId));
+                
+                if (!inv) return alert('Invoice not found');
+                
+                document.getElementById('clientName').textContent = inv.client_name || 'N/A';
+                document.getElementById('invNumber').textContent = inv.invoice_number || 'N/A';
+                document.getElementById('invDate').textContent = inv.date || 'N/A';
+                document.getElementById('invDue').textContent = inv.due_date || 'N/A';
+                document.getElementById('invStatus').textContent = inv.status || 'N/A';
+                
+                document.getElementById('invDesc').textContent = inv.description || 'Services Rendered';
+                
+                const amountFormatted = parseFloat(inv.amount || 0).toLocaleString('en-IN', {minimumFractionDigits: 2});
+                document.getElementById('invAmount').textContent = amountFormatted;
+                document.getElementById('grandTotal').textContent = '₹' + amountFormatted;
+                
+            } catch (err) {
+                console.error(err);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -38,6 +38,24 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
 
+
+def get_team_members(manager_name):
+    emp_df = read_excel_cached("employees.xlsx").fillna('')
+    team = emp_df[(emp_df['reporting_manager'].astype(str) == manager_name)]
+    return team['name'].tolist(), team['employee_id'].tolist(), team['id'].tolist()
+
+def is_admin_or_manager():
+    return session.get('role') == 'admin' or str(session.get('designation', '')).lower() == 'manager'
+
+def is_hr():
+    return str(session.get('designation', '')).lower() == 'hr'
+
+def is_admin_or_hr():
+    return session.get('role') == 'admin' or str(session.get('designation', '')).lower() == 'hr'
+
+def is_admin_manager_or_hr():
+    return is_admin_or_manager() or is_hr()
+
 def get_org_id():
     from flask import session, has_request_context
     if has_request_context() and session and 'org_id' in session:
@@ -46,7 +64,7 @@ def get_org_id():
 
 def save_excel_and_sync(df, db_name):
     org_id = get_org_id()
-    file_path = os.path.join('local_storage', org_id, db_name)
+    file_path = os.path.join(app.root_path, 'local_storage', org_id, db_name)
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     df.to_excel(file_path, index=False, engine='openpyxl')
     print(f"Saved {db_name} to local storage for org {org_id}.")
@@ -58,23 +76,20 @@ _df_cache = {}
 
 def read_excel_cached(db_name):
     org_id = get_org_id()
-    cache_key = f"{org_id}_{db_name}"
-    if cache_key in _df_cache:
-        return _df_cache[cache_key]
-    
-    file_path = os.path.join('local_storage', org_id, db_name)
+    file_path = os.path.join(app.root_path, 'local_storage', org_id, db_name)
     import pandas as pd
+    
+    print(f"Reading file_path: {os.path.abspath(file_path)}")
     
     if os.path.exists(file_path):
         try:
             df = pd.read_excel(file_path, engine='openpyxl')
-        except Exception:
-            df = pd.DataFrame()
-    else:
-        df = pd.DataFrame()
-        
-    _df_cache[cache_key] = df
-    return df
+            print(f"Loaded {db_name} with shape {df.shape}")
+            return df
+        except Exception as e:
+            print(f"Error reading {file_path}: {e}")
+            return pd.DataFrame()
+    return pd.DataFrame()
 
 def format_phone_number(val):
     if pd.isna(val) or str(val).strip() == '':
@@ -110,6 +125,7 @@ def init_excel():
         'leaves': pd.DataFrame(columns=['id', 'emp_id', 'start_date', 'end_date', 'reason', 'status']),
         'documents': pd.DataFrame(columns=['id', 'emp_id', 'doc_type', 'filename', 'upload_date']),
         'incomes': pd.DataFrame(columns=['id', 'name', 'source', 'amount', 'date', 'status']),
+        'invoices': pd.DataFrame(columns=['id', 'invoice_number', 'client_name', 'amount', 'date', 'due_date', 'status', 'description']),
         'holidays': pd.DataFrame(columns=['id', 'date', 'name', 'type'])
     }
     
@@ -173,7 +189,7 @@ def api_login():
     password = str(data.get('password', ''))
     
     import json, os
-    global_usernames_path = os.path.join('local_storage', 'global_usernames.json')
+    global_usernames_path = os.path.join(app.root_path, 'local_storage', 'global_usernames.json')
     org_id = 'default'
     if os.path.exists(global_usernames_path):
         try:
@@ -201,11 +217,12 @@ def api_login():
                     if str(emp.iloc[0].get('status', 'Active')).lower() == 'inactive':
                         session.clear()
                         return jsonify({'success': False, 'message': 'Your account is inactive. Please contact the administrator.'}), 403
+                    session['designation'] = str(emp.iloc[0].get('designation', ''))
                         
         session['user_id'] = int(user_row['id'])
         session['role'] = str(user_row['role'])
         session['name'] = str(user_row['name'])
-        return jsonify({'success': True, 'role': str(user_row['role'])})
+        return jsonify({'success': True, 'role': str(user_row['role']), 'designation': session.get('designation', '')})
     
     session.clear()
     return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
@@ -221,8 +238,8 @@ def api_create_org():
         return jsonify({'success': False, 'message': 'All fields are required.'}), 400
         
     import json, os, uuid
-    global_usernames_path = os.path.join('local_storage', 'global_usernames.json')
-    organizations_path = os.path.join('local_storage', 'organizations.json')
+    global_usernames_path = os.path.join(app.root_path, 'local_storage', 'global_usernames.json')
+    organizations_path = os.path.join(app.root_path, 'local_storage', 'organizations.json')
     
     gun = {}
     if os.path.exists(global_usernames_path):
@@ -279,6 +296,7 @@ def api_create_org():
         'leaves': pd.DataFrame(columns=['id', 'emp_id', 'start_date', 'end_date', 'reason', 'status']),
         'documents': pd.DataFrame(columns=['id', 'emp_id', 'doc_type', 'filename', 'upload_date']),
         'incomes': pd.DataFrame(columns=['id', 'name', 'source', 'amount', 'date', 'status']),
+        'invoices': pd.DataFrame(columns=['id', 'invoice_number', 'client_name', 'amount', 'date', 'due_date', 'status', 'description']),
     }
     
     for db_name, df in files_to_create.items():
@@ -609,6 +627,8 @@ def delete_client(client_id):
 
 @app.route('/api/salary', methods=['GET'])
 def get_salary():
+    if 'user_id' not in session or not is_admin_or_hr():
+        return jsonify({'error': 'Unauthorized'}), 401
     sal_df = read_excel_cached(f"salary.xlsx")
     emp_df = read_excel_cached(f"employees.xlsx")
     
@@ -705,6 +725,8 @@ def get_salary():
 
 @app.route('/api/salary/<int:salary_id>/pay', methods=['POST'])
 def pay_salary(salary_id):
+    if 'user_id' not in session or not is_admin_or_hr():
+        return jsonify({'error': 'Unauthorized'}), 401
     sal_df = read_excel_cached(f"salary.xlsx")
     
     if not sal_df.empty:
@@ -725,7 +747,7 @@ def pay_salary(salary_id):
 
 @app.route('/api/salary/<int:salary_id>', methods=['PUT'])
 def update_salary(salary_id):
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_or_hr():
         return jsonify({'error': 'Unauthorized'}), 401
     
     data = request.json
@@ -781,7 +803,7 @@ def get_employee_salary_history(emp_id):
 
 @app.route('/api/leaves/<int:leave_id>', methods=['PUT'])
 def update_leave(leave_id):
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_or_hr():
         return jsonify({'error': 'Unauthorized'}), 401
     
     try:
@@ -831,7 +853,7 @@ def save_daily_work():
             'project': data.get('project', ''),
             'description': data.get('description', ''),
             'hours': '',
-            'status': data.get('status') or 'To Do'
+            'status': data.get('status') or ('Review' if not data.get('emp_id') else 'To Do')
         }])
         
         df = pd.concat([df, new_row], ignore_index=True)
@@ -896,7 +918,7 @@ def edit_my_work():
         idx = df.index[df['id'] == int(work_id)].tolist()
         if idx:
             row_idx = idx[0]
-            if str(df.at[row_idx, 'emp_id']) != str(session['user_id']):
+            if str(df.at[row_idx, 'emp_id']) != str(session['user_id']) and not is_admin_or_manager():
                 return jsonify({'error': 'Unauthorized to edit this record'}), 403
                 
             df.at[row_idx, 'description'] = new_desc
@@ -1041,15 +1063,32 @@ def update_profile():
     return jsonify({'error': 'Failed to update profile'}), 500
 
 
+
+@app.route('/api/managers', methods=['GET'])
+def get_managers():
+    if 'user_id' not in session or not is_admin_or_manager():
+        return jsonify({'error': 'Unauthorized'}), 401
+    path = f"employees.xlsx"
+    try:
+        emp_df = read_excel_cached(path).fillna('')
+        managers = emp_df[emp_df['designation'].str.lower() == 'manager']
+        return jsonify(managers.to_dict('records'))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/employees', methods=['GET'])
 def get_employees():
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_manager_or_hr():
         return jsonify({'error': 'Unauthorized'}), 401
     path = f"employees.xlsx"
     if True:
         df = read_excel_cached(path).fillna('')
         if df.empty:
             return jsonify([])
+            
+        if session.get('role') != 'admin' and session.get('designation', '').lower() == 'manager':
+            manager_name = str(session.get('name', ''))
+            df = df[(df['reporting_manager'].astype(str) == manager_name)]
 
         # Calculate active project count for each employee
         proj_df = read_excel_cached(f"projects.xlsx").fillna('')
@@ -1071,6 +1110,7 @@ def get_employees():
             name_to_userid = dict(zip(users_df['name'], users_df['id']))
             df['username'] = df['name'].map(name_to_username).fillna('Not set')
             df['user_id'] = df['name'].map(name_to_userid)
+            df['user_id'] = df['user_id'].astype(object).where(df['user_id'].notna(), None)
         else:
             df['username'] = 'Not set'
             df['user_id'] = None
@@ -1120,7 +1160,7 @@ def get_employees():
 
 @app.route('/api/employees', methods=['POST'])
 def add_employee():
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_or_manager():
         return jsonify({'error': 'Unauthorized'}), 401
     try:
         data = request.json
@@ -1128,6 +1168,11 @@ def add_employee():
         max_id = df['id'].max() if not df.empty and 'id' in df.columns else 0
         new_id = int(max_id) + 1 if pd.notna(max_id) else 1
         
+        # Auto-assign for managers
+        rep_man = data.get('reporting_manager', '')
+        if session.get('role') != 'admin' and session.get('designation', '').lower() == 'manager':
+            rep_man = session.get('name', '')
+            
         new_row = pd.DataFrame([{
             'id': new_id,
             'name': data.get('name', ''),
@@ -1138,7 +1183,8 @@ def add_employee():
             'phone': data.get('phone', ''),
             'joining_date': data.get('joining_date', ''),
             'status': data.get('status', 'Active'),
-            'salary': data.get('salary', 0)
+            'salary': data.get('salary', 0),
+            'reporting_manager': rep_man
         }])
         
         df = pd.concat([df, new_row], ignore_index=True)
@@ -1149,7 +1195,7 @@ def add_employee():
             username = str(data.get('username')).strip()
             org_id = get_org_id()
             import json, os
-            global_usernames_path = os.path.join('local_storage', 'global_usernames.json')
+            global_usernames_path = os.path.join(app.root_path, 'local_storage', 'global_usernames.json')
             gun = {}
             if os.path.exists(global_usernames_path):
                 try:
@@ -1182,7 +1228,7 @@ def add_employee():
 
 @app.route('/api/employees/<int:emp_id>', methods=['DELETE'])
 def delete_employee(emp_id):
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_or_manager():
         return jsonify({'error': 'Unauthorized'}), 401
     path = f"employees.xlsx"
     if True:
@@ -1195,7 +1241,7 @@ def delete_employee(emp_id):
 
 @app.route('/api/employees/<int:emp_id>', methods=['PUT'])
 def update_employee(emp_id):
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_or_manager():
         return jsonify({'error': 'Unauthorized'}), 401
     data = request.json
     path = f"employees.xlsx"
@@ -1204,7 +1250,12 @@ def update_employee(emp_id):
         idx = df.index[df['id'] == emp_id].tolist()
         if idx:
             row_idx = idx[0]
-            for key in ['name', 'employee_id', 'department', 'designation', 'email', 'phone', 'joining_date', 'status', 'salary']:
+            
+            # Auto-assign for managers
+            if session.get('role') != 'admin' and session.get('designation', '').lower() == 'manager':
+                data['reporting_manager'] = session.get('name', '')
+                
+            for key in ['name', 'employee_id', 'department', 'designation', 'email', 'phone', 'joining_date', 'status', 'salary', 'reporting_manager']:
                 if key in data:
                     df.at[row_idx, key] = data[key]
             save_excel_and_sync(df, path)
@@ -1310,7 +1361,7 @@ def generate_certificate(emp_id):
 
 @app.route('/api/employees/<int:emp_id>/details', methods=['GET'])
 def get_employee_details(emp_id):
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_or_manager():
         return jsonify({'error': 'Unauthorized'}), 401
     try:
         emp_df = read_excel_cached(f"employees.xlsx").fillna('')
@@ -1410,6 +1461,23 @@ def get_projects():
     path = f"projects.xlsx"
     if True:
         df = read_excel_cached(path).fillna('')
+        
+        if session.get('role') != 'admin' and session.get('designation', '').lower() == 'manager':
+            import re
+            t_names, _, _ = get_team_members(session.get('name', ''))
+            valid_names = [str(n).strip() for n in t_names if str(n).strip()]
+            # Manager should also see their own projects, but manager's name might be removed from get_team_members
+            # depending on the fix, so let's explicitly include the manager's name:
+            valid_names.append(str(session.get('name', '')).strip())
+            valid_names = list(set([n for n in valid_names if n]))
+            
+            if valid_names:
+                pattern = '|'.join([re.escape(name) for name in valid_names])
+                df = df[df['team'].astype(str).str.contains(pattern, na=False, case=False)]
+            else:
+                import pandas as pd
+                df = pd.DataFrame(columns=df.columns)
+                
         return jsonify(df.to_dict('records'))
     return jsonify([])
 
@@ -1425,7 +1493,7 @@ def get_expenses():
 
 @app.route('/api/expenses', methods=['POST'])
 def add_expense():
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_or_hr():
         return jsonify({'error': 'Unauthorized'}), 401
     try:
         data = request.json
@@ -1451,7 +1519,7 @@ def add_expense():
 
 @app.route('/api/expenses/<int:expense_id>', methods=['PUT'])
 def update_expense(expense_id):
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_or_hr():
         return jsonify({'error': 'Unauthorized'}), 401
     try:
         data = request.json
@@ -1486,7 +1554,7 @@ def get_incomes():
 
 @app.route('/api/incomes', methods=['POST'])
 def add_income():
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_or_hr():
         return jsonify({'error': 'Unauthorized'}), 401
     try:
         data = request.json
@@ -1512,7 +1580,7 @@ def add_income():
 
 @app.route('/api/incomes/<int:income_id>', methods=['PUT'])
 def update_income(income_id):
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_or_hr():
         return jsonify({'error': 'Unauthorized'}), 401
     try:
         data = request.json
@@ -1537,7 +1605,7 @@ def update_income(income_id):
 
 @app.route('/api/all_work', methods=['GET'])
 def get_all_work():
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_or_manager():
         return jsonify({'error': 'Unauthorized'}), 401
     path = f"daily_work.xlsx"
     if True:
@@ -1551,7 +1619,7 @@ def get_all_work():
 
 @app.route('/api/projects', methods=['POST'])
 def add_project():
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_or_manager():
         return jsonify({'error': 'Unauthorized'}), 401
     try:
         data = request.json
@@ -1583,7 +1651,7 @@ def add_project():
 
 @app.route('/api/edit_project/<int:project_id>', methods=['PUT'])
 def edit_project(project_id):
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_or_manager():
         return jsonify({'error': 'Unauthorized'}), 401
     data = request.json
     try:
@@ -1613,7 +1681,7 @@ def edit_project(project_id):
 
 @app.route('/api/delete_project/<int:project_id>', methods=['DELETE'])
 def delete_project(project_id):
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_or_manager():
         return jsonify({'error': 'Unauthorized'}), 401
     try:
         path = f"projects.xlsx"
@@ -1642,7 +1710,7 @@ def get_holidays():
             approved = leaves_df[leaves_df['status'] == 'Approved']
             
             # If not admin, only show the user's own leaves
-            if session.get('role') != 'admin':
+            if not is_admin_or_manager():
                 approved = approved[approved['emp_id'].astype(str) == str(session['user_id'])]
             
             # Map emp_id to name
@@ -1664,7 +1732,7 @@ def get_holidays():
                     end_str = row['end_date']
                     
                 # For non-admins viewing their own leaves, "My Leave" is a better title
-                leave_title = "My Leave" if session.get('role') != 'admin' else f"{emp_name} - On Leave"
+                leave_title = "My Leave" if not is_admin_or_manager() else f"{emp_name} - On Leave"
                     
                 holidays.append({
                     'id': f"leave_{row['id']}",
@@ -1680,7 +1748,7 @@ def get_holidays():
 
 @app.route('/api/holidays', methods=['POST'])
 def add_holiday():
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_or_hr():
         return jsonify({'error': 'Unauthorized'}), 401
     data = request.json
     try:
@@ -1705,7 +1773,7 @@ def add_holiday():
 
 @app.route('/api/holidays/<int:holiday_id>', methods=['DELETE'])
 def delete_holiday(holiday_id):
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_or_hr():
         return jsonify({'error': 'Unauthorized'}), 401
     try:
         df = read_excel_cached("holidays.xlsx")
@@ -1721,7 +1789,7 @@ def delete_holiday(holiday_id):
 
 @app.route('/api/daily_work', methods=['GET'])
 def get_daily_work():
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_or_manager():
         return jsonify({'error': 'Unauthorized'}), 401
     path = f"daily_work.xlsx"
     if True:
@@ -1741,13 +1809,18 @@ def get_daily_work():
             
         df_ids = df['emp_id'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
         df['name'] = df_ids.map(id_to_name).fillna(df['emp_id'])
+        
+        if session.get('role') != 'admin' and session.get('designation', '').lower() == 'manager':
+            t_names, t_eids, t_ids = get_team_members(session.get('name', ''))
+            valid_ids = [str(x) for x in t_eids] + [int(x) for x in t_eids if str(x).isdigit()] + [str(x) for x in t_ids] + [int(x) for x in t_ids if str(x).isdigit()]
+            df = df[df.get('emp_id', pd.Series()).isin(valid_ids) | df.get('user_id', pd.Series()).isin(valid_ids)]
             
         return jsonify(df.to_dict('records'))
     return jsonify([])
 
 @app.route('/api/leaves', methods=['GET'])
 def get_all_leaves():
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_or_manager():
         return jsonify({'error': 'Unauthorized'}), 401
     path = f"leaves.xlsx"
     if True:
@@ -1793,7 +1866,7 @@ def apply_leave():
 
 @app.route('/api/update_status', methods=['POST'])
 def update_status():
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_or_manager():
         return jsonify({'error': 'Unauthorized'}), 401
     try:
         data = request.json
@@ -1818,7 +1891,7 @@ def update_status():
 
 @app.route('/api/review_work', methods=['POST'])
 def review_work():
-    if 'user_id' not in session or session.get('role') != 'admin':
+    if 'user_id' not in session or not is_admin_or_manager():
         return jsonify({'error': 'Unauthorized'}), 401
     try:
         data = request.json
@@ -1930,7 +2003,7 @@ def api_upload_org_logo():
             return jsonify({'success': False, 'message': 'Google Drive upload failed'}), 500
         
         import json, os
-        organizations_path = os.path.join('local_storage', 'organizations.json')
+        organizations_path = os.path.join(app.root_path, 'local_storage', 'organizations.json')
         orgs = {}
         if os.path.exists(organizations_path):
             try:
@@ -1950,7 +2023,7 @@ def api_upload_org_logo():
 @app.route('/api/upload-document', methods=['POST'])
 def api_upload_document():
     user_id = session.get('user_id')
-    if not user_id or session.get('role') != 'employee':
+    if not user_id or session.get('role') not in ['employee', 'admin']:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
     
     if 'document' not in request.files:
@@ -2116,7 +2189,7 @@ def get_context():
     org_name = 'Renvora Tech'
     org_logo = '/static/assets/img/logo.png'
     import json, os
-    organizations_path = os.path.join('local_storage', 'organizations.json')
+    organizations_path = os.path.join(app.root_path, 'local_storage', 'organizations.json')
     if os.path.exists(organizations_path):
         try:
             with open(organizations_path, 'r') as f:
@@ -2211,6 +2284,302 @@ def get_context():
     return jsonify(data)
 
 
+DEFAULT_POLICIES = [
+    {
+        "id": 1,
+        "icon": "fas fa-clock",
+        "color": "primary",
+        "title": "Office Timing",
+        "description": "Standard office hours are from 9:00 AM to 6:00 PM. A grace period of 15 minutes is allowed."
+    },
+    {
+        "id": 2,
+        "icon": "fas fa-plane-departure",
+        "color": "success",
+        "title": "Leave Policy",
+        "description": "Employees are entitled to 12 casual leaves, 12 sick leaves, and 15 earned leaves annually."
+    },
+    {
+        "id": 3,
+        "icon": "fas fa-tshirt",
+        "color": "info",
+        "title": "Dress Code",
+        "description": "Smart casuals are expected from Monday to Thursday. Casuals are permitted on Fridays."
+    },
+    {
+        "id": 4,
+        "icon": "fas fa-handshake",
+        "color": "warning",
+        "title": "Work Ethics",
+        "description": "Maintain professionalism, respect diversity, and adhere to the company's code of conduct."
+    },
+    {
+        "id": 5,
+        "icon": "fas fa-laptop",
+        "color": "secondary",
+        "title": "Laptop Policy",
+        "description": "Company laptops are for official use only. Ensure data security and report damages immediately."
+    },
+    {
+        "id": 6,
+        "icon": "fas fa-wifi",
+        "color": "danger",
+        "title": "Internet Usage",
+        "description": "Use internet responsibly. Accessing unauthorized or inappropriate sites is strictly prohibited."
+    }
+]
+
+@app.route('/api/policy', methods=['GET'])
+def get_policy():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    org_id = get_org_id()
+    policy_path = os.path.join(app.root_path, 'local_storage', org_id, 'policy.json')
+    
+    if os.path.exists(policy_path):
+        try:
+            import json
+            with open(policy_path, 'r', encoding='utf-8') as f:
+                return jsonify(json.load(f))
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
+    return jsonify(DEFAULT_POLICIES)
+
+@app.route('/api/policy', methods=['PUT'])
+def update_policy():
+    if 'user_id' not in session or not is_admin_or_manager():
+        # wait, HR should be able to edit. Let's explicitly check for HR.
+        pass # check below
+    
+    role = session.get('role', '')
+    designation = str(session.get('designation', '')).lower()
+    
+    if role != 'admin' and designation != 'hr':
+        return jsonify({'error': 'Unauthorized. Only Admins and HR can edit the policy.'}), 401
+        
+    try:
+        new_policies = request.json
+        if not isinstance(new_policies, list):
+            return jsonify({'error': 'Invalid data format'}), 400
+            
+        org_id = get_org_id()
+        policy_path = os.path.join(app.root_path, 'local_storage', org_id, 'policy.json')
+        os.makedirs(os.path.dirname(policy_path), exist_ok=True)
+        
+        import json
+        with open(policy_path, 'w', encoding='utf-8') as f:
+            json.dump(new_policies, f, indent=4)
+            
+        return jsonify({'success': True, 'message': 'Policies updated successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Force reload
+
+# ==========================================
+# INVOICES API
+# ==========================================
+
+@app.route('/api/invoices', methods=['GET'])
+def get_invoices():
+    try:
+        path = f"invoices.xlsx"
+        df = read_excel_cached(path)
+        return jsonify(df.fillna("").to_dict('records'))
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/invoices', methods=['POST'])
+def add_invoice():
+    try:
+        data = request.json
+        df = read_excel_cached(f"invoices.xlsx")
+        
+        new_id = int(df['id'].max()) + 1 if not df.empty and pd.notna(df['id'].max()) else 1
+        
+        new_record = {
+            'id': new_id,
+            'invoice_number': data.get('invoice_number', ''),
+            'client_name': data.get('client_name', ''),
+            'amount': data.get('amount', 0),
+            'date': data.get('date', ''),
+            'due_date': data.get('due_date', ''),
+            'status': data.get('status', 'Pending'),
+            'description': data.get('description', '')
+        }
+        
+        df = pd.concat([df, pd.DataFrame([new_record])], ignore_index=True)
+        save_excel_and_sync(df, f"invoices.xlsx")
+        if f"invoices.xlsx" in _df_cache: del _df_cache[f"invoices.xlsx"]
+        
+        return jsonify({'success': True, 'message': 'Invoice created successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/invoices/<int:invoice_id>', methods=['PUT'])
+def edit_invoice(invoice_id):
+    try:
+        data = request.json
+        df = read_excel_cached(f"invoices.xlsx")
+        
+        if invoice_id in df['id'].values:
+            idx = df[df['id'] == invoice_id].index[0]
+            for key in ['invoice_number', 'client_name', 'amount', 'date', 'due_date', 'status', 'description']:
+                if key in data:
+                    df.at[idx, key] = data[key]
+                    
+            save_excel_and_sync(df, f"invoices.xlsx")
+            if f"invoices.xlsx" in _df_cache: del _df_cache[f"invoices.xlsx"]
+            return jsonify({'success': True, 'message': 'Invoice updated successfully'})
+        return jsonify({'error': 'Invoice not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/invoices/<int:invoice_id>', methods=['DELETE'])
+def delete_invoice(invoice_id):
+    try:
+        df = read_excel_cached(f"invoices.xlsx")
+        if invoice_id in df['id'].values:
+            df = df[df['id'] != invoice_id]
+            save_excel_and_sync(df, f"invoices.xlsx")
+            if f"invoices.xlsx" in _df_cache: del _df_cache[f"invoices.xlsx"]
+            return jsonify({'success': True, 'message': 'Invoice deleted successfully'})
+        return jsonify({'error': 'Invoice not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ==========================================
+# QUOTATIONS API (JSON Storage)
+# ==========================================
+
+def get_quotations_path():
+    org_id = str(get_org_id())
+    path = os.path.join(app.root_path, 'local_storage', org_id, 'quotations.json')
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if not os.path.exists(path):
+        import json
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump([], f)
+    return path
+
+@app.route('/api/quotations', methods=['GET'])
+def get_quotations():
+    try:
+        import json
+        with open(get_quotations_path(), 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/quotations', methods=['POST'])
+def create_quotation():
+    try:
+        import json, uuid
+        from datetime import datetime
+        data = request.json
+        
+        path = get_quotations_path()
+        with open(path, 'r', encoding='utf-8') as f:
+            quotations = json.load(f)
+            
+        new_quote = {
+            'id': str(uuid.uuid4()),
+            'quote_no': data.get('quote_no', ''),
+            'date': data.get('date', ''),
+            'due_date': data.get('due_date', ''),
+            'seller_info': data.get('seller_info', {}),
+            'buyer_info': data.get('buyer_info', {}),
+            'items': data.get('items', []),
+            'totals': data.get('totals', {}),
+            'amount_in_words': data.get('amount_in_words', ''),
+            'terms': data.get('terms', ''),
+            'status': data.get('status', 'Draft'),
+            'created_at': datetime.now().isoformat()
+        }
+        
+        quotations.append(new_quote)
+        
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(quotations, f, indent=4)
+            
+        return jsonify({'success': True, 'message': 'Quotation created', 'id': new_quote['id']})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/quotations/<quote_id>', methods=['GET'])
+def get_quotation_by_id(quote_id):
+    try:
+        import json
+        with open(get_quotations_path(), 'r', encoding='utf-8') as f:
+            quotations = json.load(f)
+            
+        for q in quotations:
+            if q['id'] == quote_id:
+                return jsonify(q)
+                
+        return jsonify({'error': 'Quotation not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/quotations/<quote_id>', methods=['PUT'])
+def update_quotation(quote_id):
+    try:
+        import json
+        data = request.json
+        path = get_quotations_path()
+        
+        with open(path, 'r', encoding='utf-8') as f:
+            quotations = json.load(f)
+            
+        updated = False
+        for i, q in enumerate(quotations):
+            if q['id'] == quote_id:
+                quotations[i].update({
+                    'quote_no': data.get('quote_no', q.get('quote_no')),
+                    'date': data.get('date', q.get('date')),
+                    'due_date': data.get('due_date', q.get('due_date')),
+                    'seller_info': data.get('seller_info', q.get('seller_info')),
+                    'buyer_info': data.get('buyer_info', q.get('buyer_info')),
+                    'items': data.get('items', q.get('items')),
+                    'totals': data.get('totals', q.get('totals')),
+                    'amount_in_words': data.get('amount_in_words', q.get('amount_in_words')),
+                    'terms': data.get('terms', q.get('terms')),
+                    'status': data.get('status', q.get('status'))
+                })
+                updated = True
+                break
+                
+        if updated:
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(quotations, f, indent=4)
+            return jsonify({'success': True, 'message': 'Quotation updated'})
+            
+        return jsonify({'error': 'Quotation not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/quotations/<quote_id>', methods=['DELETE'])
+def delete_quotation(quote_id):
+    try:
+        import json
+        path = get_quotations_path()
+        with open(path, 'r', encoding='utf-8') as f:
+            quotations = json.load(f)
+            
+        new_quotations = [q for q in quotations if q['id'] != quote_id]
+        
+        if len(new_quotations) < len(quotations):
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(new_quotations, f, indent=4)
+            return jsonify({'success': True, 'message': 'Quotation deleted'})
+            
+        return jsonify({'error': 'Quotation not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
-

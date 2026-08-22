@@ -1,0 +1,48 @@
+[
+    {
+        "id": "792947f5-4174-4e64-807f-872792283e95",
+        "quote_no": "RVQ001",
+        "date": "2026-08-22",
+        "due_date": "2026-08-25",
+        "seller_info": {
+            "name": "Renvora Tech",
+            "address": "Renvora Tech Private Limited\nIT Park, Cyber City",
+            "phone": "+91-9876543210",
+            "email": "info@renvoratech.com",
+            "state": "Maharashtra"
+        },
+        "buyer_info": {
+            "name": "Sant Parampra",
+            "address": "",
+            "phone": "1234567890",
+            "email": "santparampra@gmail.com",
+            "state": ""
+        },
+        "items": [
+            {
+                "name": "Web Site",
+                "qty": 1,
+                "unit": "",
+                "price": 5000,
+                "disc": 0,
+                "gst": 0,
+                "amount": 5000
+            }
+        ],
+        "totals": {
+            "sub_total": 5000,
+            "discount": 0,
+            "sgst": 0,
+            "cgst": 0,
+            "total_invoice": 5000,
+            "service_charge": 0,
+            "total_amount": 5000,
+            "received": 0,
+            "balance": 5000
+        },
+        "amount_in_words": "",
+        "terms": "",
+        "status": "Sent",
+        "created_at": "2026-08-22T12:31:50.265291"
+    }
+]
